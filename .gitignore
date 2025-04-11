@@ -398,3 +398,14 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+*.exe
+*.obj
+Debug/
+Release/
+.vs/
+*.sln
+*.vcxproj
+*.filters
+*.user
+desktop.ini
