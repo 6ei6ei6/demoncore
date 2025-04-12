@@ -18,9 +18,9 @@ constexpr int WORLD_WIDTH = 10000;
 constexpr int WORLD_HEIGHT = 10000;
 
 constexpr int ENTITY_RADIUS = 10;
-constexpr int ENTITY_OUTLINE = 3;
+constexpr int ENTITY_OUTLINE = 2;
 
-constexpr int PLAYER_HEALTH = 1000;
+constexpr int PLAYER_HEALTH = 200;
 
 constexpr float PLAYER_SPEED = 200;
 constexpr float PLAYER_TURNING = 20;
@@ -61,10 +61,13 @@ constexpr float DEATH_RADIUS = 30;
 constexpr float DEATH_SPREAD = 1;
 constexpr float DEATH_FORCE = 5;
 
+constexpr float REGEN_TIME = 1;
+constexpr float REGEN_SPEED = 100;
+
 constexpr float DEADZONE_WIDTH = 100;
 constexpr float DEADZONE_HEIGHT = 100;
 
-constexpr float HUD_SIZE = 50;
+constexpr float HUD_SIZE = 40;
 
 constexpr size_t ITEM_MAX = 100;
 constexpr size_t ENEMY_MAX = 2000;
@@ -116,6 +119,7 @@ int bulletCount = 0;
 sf::Clock deltaClock;
 sf::Clock dragTimer;
 sf::Clock dropTimer;
+sf::Clock regenTimer;
 
 sf::Vector2f aim = { 0,0 };
 sf::Vector2f dragStart = { 0,0 };
@@ -152,6 +156,7 @@ struct ItemPool
 struct EnemyPool
 {
 	uint8_t state[ENEMY_MAX];
+	int health[ENEMY_MAX];
 	sf::Vector2f position[ENEMY_MAX];
 	sf::Vector2f velocity[ENEMY_MAX];
 } enemies;
@@ -175,6 +180,7 @@ int main()
 	for (int i = 0; i < ENEMY_MAX; i++)
 	{
 		enemies.state[i] = 0b1;
+		enemies.health[i] = 100;
 		enemies.position[i] = { static_cast<float>(rand() % WORLD_WIDTH), static_cast<float>(rand() % WORLD_HEIGHT) };
 		enemies.velocity[i] = { 0,0 };
 	}
@@ -202,7 +208,6 @@ int main()
 	deadZone.width = DEADZONE_WIDTH;
 	deadZone.height = DEADZONE_HEIGHT;
 
-	HUD.setFillColor(sf::Color::Red);
 	HUD.setOutlineColor(sf::Color::Black);
 	HUD.setOutlineThickness(2);
 	HUD.setLetterSpacing(5);
@@ -252,9 +257,6 @@ int main()
 		sf::Vector2f normalAim = dirAim / distAim;
 		aim = normalAim;
 
-		// UPDATE HEALTH
-		if (health == 0) playerState &= ~0b1;
-
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// PLAYER INPUT & EVENTS //
 		// INPUTS
@@ -266,7 +268,7 @@ int main()
 
 			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) playerState ^= 0b1;
 
-			if (gameState & GAME_PAUSE || (playerState & STATE_ALIVE) == 0) break;
+			if (gameState & GAME_PAUSE || !(playerState & STATE_ALIVE)) break;
 
 			if (event.type == sf::Event::KeyPressed)
 			{
@@ -335,6 +337,7 @@ int main()
 
 					health--;
 					bulletCount++;
+					regenTimer.restart();
 					break;
 				}
 			}
@@ -442,6 +445,17 @@ int main()
 		view.zoom(zoom);
 		if (view.getSize().x < 1 || view.getSize().y < 1) view.setSize({ 1,1 });
 		if (view.getSize().x > WORLD_WIDTH || view.getSize().y > WORLD_HEIGHT) view.setSize({ WORLD_WIDTH,WORLD_HEIGHT });
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// UPDATE STATES //
+		// UPDATE HEALTH
+		if (health == 0)
+		{
+			playerState &= ~0b1;
+			playerInput &= ~0b11111111;
+		}
+
+		if (health < PLAYER_HEALTH && regenTimer.getElapsedTime().asSeconds() > REGEN_TIME) health += REGEN_SPEED * deltaTime;
 
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// COLLISIONS AND INTERACTIONS //
@@ -676,7 +690,7 @@ int main()
 				//velocity *= PLAYER_FRICTION;
 			}
 		}
-		
+
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// SHAPE SETTING & RENDERING & VFX & DEBUG //
 		// ENEMY VFX
@@ -801,6 +815,20 @@ int main()
 			}
 		}
 
+		// HEALTH VFX
+		if (gameState & GAME_VFX)
+		{
+			if (health < PLAYER_HEALTH && playerState & STATE_ALIVE)
+			{	
+				float hurt = (1.0f - static_cast<float>(health) / PLAYER_HEALTH);
+				sf::Color hurtingColor = sf::Color(255 * hurt, 0, 255 * (1 - hurt));
+				player.setFillColor(hurtingColor);
+			}
+			if (!(playerState & STATE_ALIVE)) player.setFillColor(sf::Color::Red);
+			if(health == PLAYER_HEALTH) player.setFillColor(sf::Color::Blue);
+			
+		}
+
 		// DEBUG LINES
 		if (gameState & 0b10)
 		{
@@ -835,8 +863,17 @@ int main()
 		if (gameState & GAME_HUD)
 		{
 			window.setView(pauseView);
-			HUD.setString(std::to_string(health * 100 / PLAYER_HEALTH));
-			if (!(playerState & STATE_ALIVE)) HUD.setString("0");
+
+			HUD.setString("HP " + std::to_string(health * 100 / PLAYER_HEALTH));
+			if (!(playerState & STATE_ALIVE)) HUD.setString("HP 0");
+
+			HUD.setFillColor(sf::Color::Red);
+			if (health > PLAYER_HEALTH * 0.20) HUD.setFillColor(sf::Color::Yellow);
+			if (health > PLAYER_HEALTH * 0.70) HUD.setFillColor(sf::Color::Green);
+			if (!(playerState & STATE_ALIVE)) HUD.setFillColor(sf::Color::Red);
+
+			//HUD.setPosition(player.getPosition()); // Must be on same view.
+
 			window.draw(HUD);
 		}
 
