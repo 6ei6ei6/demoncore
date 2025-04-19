@@ -141,6 +141,8 @@ uint8_t engineSystems = 0b1111111;
 uint8_t playerState = 1;
 uint16_t playerInput = 0;
 
+bool screensave = false;
+
 int health = PLAYER_HEALTH;
 
 int grabbedID = -1;
@@ -363,6 +365,21 @@ void initTexts()
 	countText.setFillColor(sf::Color::Red);
 }
 
+void takeScreenshot(sf::RenderWindow& window, const std::string& filename = "screenshot.png")
+{
+	sf::Texture texture;
+	texture.create(window.getSize().x, window.getSize().y);
+	texture.update(window);
+
+	sf::Image screenshot = texture.copyToImage();
+	if (screenshot.saveToFile(filename)) std::cout << "Screenshot saved to " << filename << "\n";
+	{
+		
+	}
+	else std::cerr << "Failed to save screenshot.\n";
+	screensave = false;
+}
+
 int main()
 {
 	if (!font.loadFromFile("font.ttf"))
@@ -463,13 +480,22 @@ int main()
 
 			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::Escape) gameState ^= GAME_PAUSE;
 
-			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) playerState ^= 0b1;
+			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) playerState ^= STATE_ALIVE;
+
 
 			if (gameState & GAME_PAUSE)
 			{
 				if (event.type == sf::Event::MouseButtonPressed) if (event.mouseButton.button == sf::Mouse::Right) gameState ^= GAME_STATS;
 			}
 			else gameState &= ~GAME_STATS;
+
+			if (engineSystems & ENGINE_DEBUG)
+			{
+				if (event.type == sf::Event::KeyPressed)
+				{
+					if (event.key.code == sf::Keyboard::P) screensave = true;
+				}
+			}
 
 			if (!(playerState & STATE_ALIVE)) break;
 
@@ -517,7 +543,7 @@ int main()
 			{
 				if (event.mouseWheelScroll.delta > 0) playerInput |= INPUT_ZOOMIN;
 				if (event.mouseWheelScroll.delta < 0) playerInput |= INPUT_ZOOMOUT;
-			}
+			}	
 		}
 
 		if (engineSystems & ENGINE_INPUT)
@@ -1289,6 +1315,8 @@ int main()
 
 		window.setView(view);
 		window.display();
+
+		if (screensave) takeScreenshot(window);
     }
 
     return 0;
