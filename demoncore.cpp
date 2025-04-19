@@ -14,8 +14,8 @@ constexpr int WINDOW_HEIGHT = 1000;
 
 constexpr int FPS_MAX = 60;
 
-constexpr int WORLD_WIDTH = 50000;
-constexpr int WORLD_HEIGHT = 50000;
+constexpr int WORLD_WIDTH = 10000;
+constexpr int WORLD_HEIGHT = 10000;
 
 constexpr int ENTITY_RADIUS = 10;
 constexpr int ENTITY_OUTLINE = 2;
@@ -40,7 +40,7 @@ constexpr float ENEMY_BOUNCE = 30;
 constexpr float ENEMY_LINE = 1000;
 
 constexpr const float FLOCK_RADIUS = 200;
-constexpr const float FLOCK_HUDDLE = 100;
+constexpr const float FLOCK_HUDDLE = 50;
 constexpr const float FLOCK_SPEED = 20;
 constexpr const float FLOCK_SEPARATION = 100.0;
 constexpr const float FLOCK_ALIGNMENT = 10.0;
@@ -136,10 +136,12 @@ constexpr uint8_t ENTITY_ENEMY = 1 << 1;
 // .....
 
 uint8_t gameState = 0b1000;
-uint8_t engineSystems = 0b1111110;
+uint8_t engineSystems = 0b1111111;
 
 uint8_t playerState = 1;
 uint16_t playerInput = 0;
+
+bool screensave = false;
 
 int health = PLAYER_HEALTH;
 
@@ -353,12 +355,29 @@ void initTexts()
 	circleText.setPosition(WINDOW_WIDTH * 0.75, WINDOW_HEIGHT * 0.7);
 	circleText.setOrigin(circleText.getLocalBounds().width * 0.5, circleText.getLocalBounds().height * 0.5);
 
-	overText.setFillColor(sf::Color::Black);
 	overText.setLetterSpacing(5);
+	overText.setFillColor(sf::Color::Black);
+	overText.setOutlineThickness(0);
+	overText.setOutlineColor(sf::Color::Black);
 	overText.setPosition(WINDOW_WIDTH * 0.5, WINDOW_HEIGHT * 0.5);
 	overText.setOrigin(overText.getLocalBounds().width * 0.5, overText.getLocalBounds().height * 0.5);
 
 	countText.setFillColor(sf::Color::Red);
+}
+
+void takeScreenshot(sf::RenderWindow& window, const std::string& filename = "screenshot.png")
+{
+	sf::Texture texture;
+	texture.create(window.getSize().x, window.getSize().y);
+	texture.update(window);
+
+	sf::Image screenshot = texture.copyToImage();
+	if (screenshot.saveToFile(filename)) std::cout << "Screenshot saved to " << filename << "\n";
+	{
+		
+	}
+	else std::cerr << "Failed to save screenshot.\n";
+	screensave = false;
 }
 
 int main()
@@ -421,6 +440,8 @@ int main()
 		{
 			if (!(engineSystems & ENGINE_INPUT)) engineSystems |= ENGINE_INPUT;
 			if (!(engineSystems & ENGINE_AI)) engineSystems |= ENGINE_AI;
+			if (!(engineSystems & ENGINE_COLLISION)) engineSystems |= ENGINE_COLLISION;
+
 
 			window.clear();
 			deltaTime = deltaClock.restart().asSeconds();
@@ -446,7 +467,7 @@ int main()
 		{
 			engineSystems &= ~ENGINE_INPUT;
 			engineSystems &= ~ENGINE_AI;
-			//engineSystems &= ~ENGINE_COLLISION;
+			engineSystems &= ~ENGINE_COLLISION;
 		}
 		
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -459,13 +480,22 @@ int main()
 
 			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::Escape) gameState ^= GAME_PAUSE;
 
-			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) playerState ^= 0b1;
+			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) playerState ^= STATE_ALIVE;
+
 
 			if (gameState & GAME_PAUSE)
 			{
 				if (event.type == sf::Event::MouseButtonPressed) if (event.mouseButton.button == sf::Mouse::Right) gameState ^= GAME_STATS;
 			}
 			else gameState &= ~GAME_STATS;
+
+			if (engineSystems & ENGINE_DEBUG)
+			{
+				if (event.type == sf::Event::KeyPressed)
+				{
+					if (event.key.code == sf::Keyboard::P) screensave = true;
+				}
+			}
 
 			if (!(playerState & STATE_ALIVE)) break;
 
@@ -513,7 +543,7 @@ int main()
 			{
 				if (event.mouseWheelScroll.delta > 0) playerInput |= INPUT_ZOOMIN;
 				if (event.mouseWheelScroll.delta < 0) playerInput |= INPUT_ZOOMOUT;
-			}
+			}	
 		}
 
 		if (engineSystems & ENGINE_INPUT)
@@ -965,49 +995,53 @@ int main()
 			if (!(playerState & STATE_ALIVE)) player.setFillColor(sf::Color::Red);
 			if (health == PLAYER_HEALTH) player.setFillColor(sf::Color::Blue);
 
-			// ENEMY FLOCK VFX
-			for (int i = 0; i < enemyCount; i++)
+			// ENEMY FLOCK DEBUG VFX
+			if (engineSystems & ENGINE_DEBUG && playerState & STATE_ALIVE)
 			{
-				int id = enemyIDs[i];
-
-				if (!(states[id] & STATE_ALIVE)) continue;
-
-				for (int j = 0; j < enemyCount; j++)
+				for (int i = 0; i < enemyCount; i++)
 				{
-					int jd = enemyIDs[j];
+					int id = enemyIDs[i];
 
-					if (!(states[jd] & STATE_ALIVE)) continue;
+					if (!(states[id] & STATE_ALIVE)) continue;
 
-					sf::Vector2f delta = positions[jd] - positions[id];
-					float distSq = delta.x * delta.x + delta.y * delta.y;
-
-					if (distSq < FLOCK_RADIUS * FLOCK_RADIUS)
+					for (int j = 0; j < enemyCount; j++)
 					{
-						sf::Vector2f midPoint = (positions[id] + positions[jd]) * 0.5f;
+						int jd = enemyIDs[j];
 
-						sf::Vertex flockLine[] = {
-							sf::Vertex(positions[id], sf::Color::Red),
-							sf::Vertex(midPoint, sf::Color::Black),
-							sf::Vertex(positions[jd], sf::Color::Red)
-						};
+						if (!(states[jd] & STATE_ALIVE)) continue;
 
-						window.draw(flockLine, 3, sf::LineStrip);
+						sf::Vector2f delta = positions[jd] - positions[id];
+						float distSq = delta.x * delta.x + delta.y * delta.y;
 
-						if (distSq < FLOCK_HUDDLE * FLOCK_HUDDLE)
+						if (distSq < FLOCK_RADIUS * FLOCK_RADIUS)
 						{
 							sf::Vector2f midPoint = (positions[id] + positions[jd]) * 0.5f;
 
-							sf::Vertex flockLine[] = { sf::Vertex(positions[id], sf::Color::Red), sf::Vertex(positions[jd], sf::Color::Red) };
+							sf::Vertex flockLine[] = {
+								sf::Vertex(positions[id], sf::Color::Red),
+								sf::Vertex(midPoint, sf::Color::Black),
+								sf::Vertex(positions[jd], sf::Color::Red)
+							};
 
-							window.draw(flockLine, 2, sf::LineStrip);
+							window.draw(flockLine, 3, sf::LineStrip);
+
+							if (distSq < FLOCK_HUDDLE * FLOCK_HUDDLE)
+							{
+								sf::Vector2f midPoint = (positions[id] + positions[jd]) * 0.5f;
+
+								sf::Vertex flockLine[] = { sf::Vertex(positions[id], sf::Color::Red), sf::Vertex(positions[jd], sf::Color::Red) };
+
+								window.draw(flockLine, 2, sf::LineStrip);
+							}
 						}
-					}
 
-					//
-					//sf::Vertex moveLine[] = { sf::Vertex(positions[id], sf::Color::Red), sf::Vertex(positions[jd], sf::Color::Black)};
-					//window.draw(moveLine, 2, sf::Lines);
+						//
+						//sf::Vertex moveLine[] = { sf::Vertex(positions[id], sf::Color::Red), sf::Vertex(positions[jd], sf::Color::Black)};
+						//window.draw(moveLine, 2, sf::Lines);
+					}
 				}
 			}
+			
 
 		}
 		
@@ -1107,6 +1141,9 @@ int main()
 
 			pauseText.setFillColor(sf::Color::White);
 
+			//overText.setFillColor(sf::Color::Red);
+			//overText.setOutlineThickness(2);
+
 			window.draw(triangle);
 			window.draw(square);
 			window.draw(triangle2);
@@ -1118,19 +1155,19 @@ int main()
 		}
 
 		// GAME OVER SCREEN
-		if (engineSystems & ENGINE_RENDERING && (playerState & STATE_ALIVE) == 0)
+		if (engineSystems & ENGINE_RENDERING && (playerState & STATE_ALIVE) == 0 && (gameState & GAME_PAUSE) == 0)
 		{
-			window.setView(pauseView);
+			window.setView(hudView);
 			window.draw(overText);
 
 			// GAME OVER VFX
 			if (engineSystems & ENGINE_VFX)
 			{
-				// SPAWN DEATH BULLETS
 				for (int i = 0; i < bulletCount; i++)
 				{
 					int id = bulletIDs[i];
 
+					// SPAWN DEATH BULLETS
 					if (!(states[id] & STATE_ALIVE))
 					{
 						float deathSpin = rand() % 360 * DEATH_SPREAD;
@@ -1166,7 +1203,7 @@ int main()
 						if (distSq < COLLISION_BULLET_ITEM)
 						{
 							velocities[jd] += velocities[id] * DEATH_FORCE * deltaTime;
-							killBullet(i);
+							//killBullet(i);
 							break;
 						}
 					}
@@ -1184,7 +1221,7 @@ int main()
 						if (distSq < COLLISION_BULLET_ENEMY)
 						{
 							velocities[kd] += velocities[id] * DEATH_FORCE * deltaTime;
-							killBullet(i);
+							//killBullet(i);
 							break;
 						}
 					}
@@ -1278,6 +1315,8 @@ int main()
 
 		window.setView(view);
 		window.display();
+
+		if (screensave) takeScreenshot(window);
     }
 
     return 0;
