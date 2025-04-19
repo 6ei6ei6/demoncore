@@ -15,23 +15,23 @@ namespace GameConfig
 {
 	constexpr int WINDOW_WIDTH = 1000;
 	constexpr int WINDOW_HEIGHT = 1000;
+	constexpr int WORLD_WIDTH = 10000;
+	constexpr int WORLD_HEIGHT = 10000;
 	constexpr int FPS_MAX = 60;
 	constexpr float HUD_SIZE = 40;
-	constexpr float DEADZONE_WIDTH = 100;
-	constexpr float DEADZONE_HEIGHT = 100;
+	constexpr int MAX_HEALTH = 200;
 	constexpr int ENTITY_RADIUS = 10;
 	constexpr int ENTITY_OUTLINE = 2;
-
-
+	constexpr float DROP_FORCE = 3;
+	constexpr float REGEN_TIME = 1;
+	constexpr float REGEN_SPEED = 100;
+	constexpr float DEADZONE_WIDTH = 100;
+	constexpr float DEADZONE_HEIGHT = 100;
 }
 
-constexpr int WORLD_WIDTH = 10000;
-constexpr int WORLD_HEIGHT = 10000;
-
-constexpr float BULLET_SPEED = 400;
-constexpr float BULLET_MUZZLE = 20;
-constexpr float GRAB_DISTANCE = 100;
-constexpr float DROP_FORCE = 3;
+constexpr float BULLET_SPEED = 400; // Will be toggable in the future.
+constexpr float BULLET_MUZZLE = 20; // Will be toggable in the future.
+constexpr float GRAB_DISTANCE = 100; // Handled another way in the future.
 
 namespace FlockAI
 {
@@ -62,92 +62,83 @@ namespace GameCollision
 	constexpr float COLLISION_BULLET_ENEMY = 50;
 }
 
-constexpr int PLAYER_HEALTH = 200;
-constexpr float REGEN_TIME = 1;
-constexpr float REGEN_SPEED = 100;
-
-constexpr const float FLOCK_LINE = FlockAI::FLOCK_RADIUS;
-constexpr const float FLOCK_HUDDLE = 50;
-
 namespace GameVFX
 {
+	constexpr const float FLOCK_LINE = FlockAI::FLOCK_RADIUS;
+	constexpr const float FLOCK_HUDDLE = 50;
+
 	constexpr float DEATH_SPEED = 100;
 	constexpr float DEATH_RADIUS = 30;
 	constexpr float DEATH_SPREAD = 1;
 	constexpr float DEATH_FORCE = 5;
 }
 
-// Counts
-constexpr size_t ITEM_MAX = 100;
-constexpr size_t ENEMY_MAX = 2500;
-constexpr size_t BULLET_MAX = 500;
-constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX + BULLET_MAX;
+namespace EntityCounts
+{
+	constexpr size_t ITEM_MAX = 100;
+	constexpr size_t ENEMY_MAX = 2500;
+	constexpr size_t BULLET_MAX = 500;
+	constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX + BULLET_MAX;
+}
 
-// GAME STATES
-constexpr uint8_t GAME_PAUSE = 1 << 0;
-constexpr uint8_t GAME_STATS = 1 << 1;
-constexpr uint8_t GAME_OVER = 1 << 2;
-constexpr uint8_t GAME_HUD = 1 << 3;
-// ....
+namespace GameplayStatus
+{
+	constexpr uint8_t GAME_PAUSE = 1 << 0;
+	constexpr uint8_t GAME_STATS = 1 << 1; // Necessary?
+	constexpr uint8_t GAME_OVER = 1 << 2; // Deprecated
+	constexpr uint8_t GAME_HUD = 1 << 3; // Handle somewhere else in future
+}
 
-// ENGINE SYSTEMS
-constexpr uint8_t ENGINE_DEBUG = 1 << 0;
-constexpr uint8_t ENGINE_INPUT = 1 << 1;
-constexpr uint8_t ENGINE_AI = 1 << 2;
-constexpr uint8_t ENGINE_PHYSICS = 1 << 3;
-constexpr uint8_t ENGINE_COLLISION = 1 << 4;
-constexpr uint8_t ENGINE_RENDERING = 1 << 5;
-constexpr uint8_t ENGINE_VFX = 1 << 6;
-// ...
+namespace EngineSystems
+{
+	constexpr uint8_t ENGINE_DEBUG = 1 << 0;
+	constexpr uint8_t ENGINE_INPUT = 1 << 1;
+	constexpr uint8_t ENGINE_AI = 1 << 2;
+	constexpr uint8_t ENGINE_PHYSICS = 1 << 3;
+	constexpr uint8_t ENGINE_COLLISION = 1 << 4;
+	constexpr uint8_t ENGINE_RENDERING = 1 << 5;
+	constexpr uint8_t ENGINE_VFX = 1 << 6;
+}
 
-// INPUT FLAGS
-constexpr uint16_t INPUT_MOVERIGHT = 1 << 0;
-constexpr uint16_t INPUT_MOVEDOWN = 1 << 1;
-constexpr uint16_t INPUT_MOVELEFT = 1 << 2;
-constexpr uint16_t INPUT_MOVEUP = 1 << 3;
-constexpr uint16_t INPUT_SHOOT = 1 << 4;
-constexpr uint16_t INPUT_GRAB = 1 << 5;
-constexpr uint16_t INPUT_DROP = 1 << 6;
-constexpr uint16_t INPUT_ZOOMIN = 1 << 7;
-constexpr uint16_t INPUT_ZOOMOUT = 1 << 8;
-// ...
+namespace PlayerInputs
+{
+	constexpr uint16_t INPUT_MOVERIGHT = 1 << 0;
+	constexpr uint16_t INPUT_MOVEDOWN = 1 << 1;
+	constexpr uint16_t INPUT_MOVELEFT = 1 << 2;
+	constexpr uint16_t INPUT_MOVEUP = 1 << 3;
+	constexpr uint16_t INPUT_SHOOT = 1 << 4;
+	constexpr uint16_t INPUT_GRAB = 1 << 5;
+	constexpr uint16_t INPUT_DROP = 1 << 6;
+	constexpr uint16_t INPUT_ZOOMIN = 1 << 7;
+	constexpr uint16_t INPUT_ZOOMOUT = 1 << 8;
+}
 
-// ENTITY STATES
-constexpr uint8_t STATE_ALIVE = 1 << 0;
-constexpr uint8_t STATE_MOVING = 1 << 1;
-constexpr uint8_t STATE_GRABBED = 1 << 2;
-constexpr uint8_t STATE_HURT = 1 << 3;
-// spares......
+namespace EntityStates
+{
+	constexpr uint8_t STATE_ALIVE = 1 << 0;
+	constexpr uint8_t STATE_MOVING = 1 << 1;
+	constexpr uint8_t STATE_GRABBED = 1 << 2;
+	constexpr uint8_t STATE_HURT = 1 << 3;
+	// ALIVE - Rendering
+	// SLEEP - No physics
+}
 
-// ALIVE - Rendering
-// SLEEP - No physics
-// 
-
-uint8_t gameState = 0b1000;
-uint8_t engineSystems = 0b1111111;
+/*
+struct GameState
+{
+uint8_t gameFlags = 0b1000;
+uint8_t engineFlags = 0b1111111;
 
 uint8_t playerState = 1;
 uint16_t playerInput = 0;
 
-bool screensave = false;
-
-int screenshotCount = 0;
-
-int health = PLAYER_HEALTH;
-
+int health = GameConfig::MAX_HEALTH;
 int grabbedID = -1;
-
 float zoom = 1.f;
-
-float deltaTime;
-
-sf::Clock deltaClock;
-
-sf::Clock regenTimer;
 
 sf::Vector2f aim = { 0,0 };
 
-sf::Vector2f position = { WORLD_WIDTH * 0.5 , WORLD_HEIGHT * 0.5 };
+sf::Vector2f position = { GameConfig::WORLD_WIDTH * 0.5 , GameConfig::WORLD_HEIGHT * 0.5 };
 sf::Vector2f velocity = { 0,0 };
 
 sf::Vector2f mousePos = { 0,0 };
@@ -156,25 +147,78 @@ sf::FloatRect viewBounds;
 
 sf::FloatRect deadZone;
 
-// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+sf::Vector2f positions[EntityCounts::ENTITY_MAX];
+sf::Vector2f velocities[EntityCounts::ENTITY_MAX];
 
-sf::Vector2f positions[ENTITY_MAX];
-sf::Vector2f velocities[ENTITY_MAX];
+float rotations[EntityCounts::ENTITY_MAX];
 
-float rotations[ENTITY_MAX];
+uint8_t states[EntityCounts::ENTITY_MAX];
 
-uint8_t states[ENTITY_MAX];
-
-int itemIDs[ITEM_MAX];
-int enemyIDs[ENEMY_MAX];
-int bulletIDs[BULLET_MAX];
+int itemIDs[EntityCounts::ITEM_MAX];
+int enemyIDs[EntityCounts::ENEMY_MAX];
+int bulletIDs[EntityCounts::BULLET_MAX];
 
 int entityCount = 0;
 int itemCount = 0;
 int enemyCount = 0;
 int bulletCount = 0;
+};
+*/
 
-// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+struct GameState
+{
+	uint8_t gameFlags = 0b1000;
+	uint8_t engineFlags = 0b1111111;
+
+	uint8_t playerState = 1;
+	uint16_t playerInput = 0;
+
+	int health = GameConfig::MAX_HEALTH;
+	int grabbedID = -1;
+	float zoom = 1.f;
+
+	sf::Vector2f aim = { 0,0 };
+
+	sf::Vector2f position = { GameConfig::WORLD_WIDTH * 0.5 , GameConfig::WORLD_HEIGHT * 0.5 };
+	sf::Vector2f velocity = { 0,0 };
+
+	sf::Vector2f mousePos = { 0,0 };
+
+	sf::FloatRect viewBounds;
+
+	sf::FloatRect deadZone;
+
+	// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+	sf::Vector2f positions[EntityCounts::ENTITY_MAX];
+	sf::Vector2f velocities[EntityCounts::ENTITY_MAX];
+
+	float rotations[EntityCounts::ENTITY_MAX];
+
+	uint8_t states[EntityCounts::ENTITY_MAX];
+
+	int itemIDs[EntityCounts::ITEM_MAX];
+	int enemyIDs[EntityCounts::ENEMY_MAX];
+	int bulletIDs[EntityCounts::BULLET_MAX];
+
+	int entityCount = 0;
+	int itemCount = 0;
+	int enemyCount = 0;
+	int bulletCount = 0;
+
+	// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+} game;
+
+bool screensave = false;
+
+int screenshotCount = 0;
+
+float deltaTime;
+
+sf::Clock deltaClock;
+
+sf::Clock regenTimer;
 
 sf::Font font;
 
@@ -212,80 +256,80 @@ const sf::View hudView = window.getDefaultView();
 // All-encompasing spawn entity function.
 int spawnEntity(sf::Vector2f pos, sf::Vector2f vel, float rot, uint8_t state)
 {
-	if (entityCount == ENTITY_MAX) return -1;
+	if (game.entityCount == EntityCounts::ENTITY_MAX) return -1;
 
-	int id = entityCount++;
+	int id = game.entityCount++;
 
-	positions[id] = pos;
-	velocities[id] = vel;
-	rotations[id] = rot;
-	states[id] = state;
+	game.positions[id] = pos;
+	game.velocities[id] = vel;
+	game.rotations[id] = rot;
+	game.states[id] = state;
 
 	return id;
 }
 
 void spawnItem(sf::Vector2f pos)
 {
-	if (itemCount >= ITEM_MAX) return;
+	if (game.itemCount >= EntityCounts::ITEM_MAX) return;
 
-	int id = spawnEntity(pos, {}, 0, STATE_ALIVE);
+	int id = spawnEntity(pos, {}, 0, EntityStates::STATE_ALIVE);
 
-	if (id != -1) itemIDs[itemCount++] = id;
+	if (id != -1) game.itemIDs[game.itemCount++] = id;
 }
 
 void spawnEnemy(sf::Vector2f pos)
 {
-	if (enemyCount == ENEMY_MAX) return;
+	if (game.enemyCount == EntityCounts::ENEMY_MAX) return;
 
-	int id = spawnEntity(pos, {}, 0, STATE_ALIVE);
-	if (id != -1) enemyIDs[enemyCount++] = id;
+	int id = spawnEntity(pos, {}, 0, EntityStates::STATE_ALIVE);
+	if (id != -1) game.enemyIDs[game.enemyCount++] = id;
 }
 
 void initBullet()
 {
-	if (bulletCount == BULLET_MAX) return;
+	if (game.bulletCount == EntityCounts::BULLET_MAX) return;
 
 	int id = spawnEntity({0,0}, {}, 0, 0);
-	if (id != -1) bulletIDs[bulletCount++] = id;
+	if (id != -1) game.bulletIDs[game.bulletCount++] = id;
 }
 
 void killItem(int i)
 {
-	if (i < 0 || i >= itemCount) return;
+	if (i < 0 || i >= game.itemCount) return;
 
-	int id = itemIDs[i];
+	int id = game.itemIDs[i];
 
-	states[id] &= ~STATE_ALIVE;
+	game.states[id] &= ~EntityStates::STATE_ALIVE;
 
-	itemIDs[i] = itemIDs[--itemCount];
+	game.itemIDs[i] = game.itemIDs[--game.itemCount];
 }
 
 void killEnemy(int i)
 {
-	if (i < 0 || i >= enemyCount) return;
+	if (i < 0 || i >= game.enemyCount) return;
 
-	int id = enemyIDs[i];
+	int id = game.enemyIDs[i];
 
-	states[id] &= ~STATE_ALIVE;
+	game.states[id] &= ~EntityStates::STATE_ALIVE;
 
-	enemyIDs[i] = enemyIDs[--enemyCount];
+	game.enemyIDs[i] = game.enemyIDs[--game.enemyCount];
 }
 
 void killBullet(int i)
 {
-	if (i < 0 || i >= bulletCount) return;
+	if (i < 0 || i >= game.bulletCount) return;
 
-	int id = bulletIDs[i];
+	int id = game.bulletIDs[i];
 
-	states[id] &= ~STATE_ALIVE;
+	game.states[id] &= ~EntityStates::STATE_ALIVE;
 
-	bulletIDs[i] = bulletIDs[--bulletCount];
+	game.bulletIDs[i] = game.bulletIDs[--game.bulletCount];
 }
 
 void initShapes()
 {
 	player.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
-	player.setPosition(position);
+	player.setPosition(game.position);
 	player.setFillColor(sf::Color::Blue);
 	player.setOutlineColor(sf::Color::Transparent);
 	player.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
@@ -388,23 +432,23 @@ int main()
 	}
 
 	// SPAWN ITEMS
-	for (int i = 0; i < ITEM_MAX; i++)
+	for (int i = 0; i < EntityCounts::ITEM_MAX; i++)
 	{
-		if (itemCount >= ITEM_MAX) break;
+		if (game.itemCount >= EntityCounts::ITEM_MAX) break;
 
-		sf::Vector2f spawnPos = {	static_cast<float>(rand() % WORLD_WIDTH),
-									static_cast<float>(rand() % WORLD_HEIGHT)};
+		sf::Vector2f spawnPos = {	static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
+									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT)};
 
 		spawnItem(spawnPos);
 	}
 
 	// SPAWN ENEMIES
-	for (int i = 0; i < ENEMY_MAX; i++)
+	for (int i = 0; i < EntityCounts::ENEMY_MAX; i++)
 	{
-		if (enemyCount < ENEMY_MAX)
+		if (game.enemyCount < EntityCounts::ENEMY_MAX)
 		{
-			sf::Vector2f spawnPos = { static_cast<float>(rand() % WORLD_WIDTH),
-									static_cast<float>(rand() % WORLD_HEIGHT) };
+			sf::Vector2f spawnPos = { static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
+									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT) };
 
 			spawnEnemy(spawnPos);
 		}
@@ -413,15 +457,15 @@ int main()
 	}
 
 	// INITIALIZE BULLETS
-	for (int i = 0; i < BULLET_MAX; i++)
+	for (int i = 0; i < EntityCounts::BULLET_MAX; i++)
 	{
-		if (bulletCount >= BULLET_MAX) break;
+		if (game.bulletCount >= EntityCounts::BULLET_MAX) break;
 
 		initBullet();
 	}
 
-	deadZone.width = GameConfig::DEADZONE_WIDTH;
-	deadZone.height = GameConfig::DEADZONE_HEIGHT;
+	game.deadZone.width = GameConfig::DEADZONE_WIDTH;
+	game.deadZone.height = GameConfig::DEADZONE_HEIGHT;
 
 	initShapes();
 	initTexts();
@@ -435,38 +479,38 @@ int main()
 	while (window.isOpen())
 	{
 		// SET UP FRAME //
-		if (playerState & STATE_ALIVE)
+		if (game.playerState & EntityStates::STATE_ALIVE)
 		{
-			if (!(engineSystems & ENGINE_INPUT)) engineSystems |= ENGINE_INPUT;
-			if (!(engineSystems & ENGINE_AI)) engineSystems |= ENGINE_AI;
-			if (!(engineSystems & ENGINE_COLLISION)) engineSystems |= ENGINE_COLLISION;
+			if (!(game.engineFlags & EngineSystems::ENGINE_INPUT)) game.engineFlags |= EngineSystems::ENGINE_INPUT;
+			if (!(game.engineFlags & EngineSystems::ENGINE_AI)) game.engineFlags |= EngineSystems::ENGINE_AI;
+			if (!(game.engineFlags & EngineSystems::ENGINE_COLLISION)) game.engineFlags |= EngineSystems::ENGINE_COLLISION;
 
 
 			window.clear();
 			deltaTime = deltaClock.restart().asSeconds();
 
-			mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+			game.mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
 			// Calculate aim
-			sf::Vector2f deltaAim = mousePos - player.getPosition();
+			sf::Vector2f deltaAim = game.mousePos - player.getPosition();
 			float distSqAim = deltaAim.x * deltaAim.x + deltaAim.y * deltaAim.y;
 			float distAim = std::sqrt(distSqAim);
 			if (distAim == 0.0f) distAim = 0.0001f;
 			sf::Vector2f normalAim = deltaAim / distAim;
-			aim = normalAim;
+			game.aim = normalAim;
 
 			// Get view bounds
 			sf::View currentView = window.getView();
-			viewBounds.left = currentView.getCenter().x - currentView.getSize().x / 2.f;
-			viewBounds.top = currentView.getCenter().y - currentView.getSize().y / 2.f;
-			viewBounds.width = currentView.getSize().x;
-			viewBounds.height = currentView.getSize().y;
+			game.viewBounds.left = currentView.getCenter().x - currentView.getSize().x / 2.f;
+			game.viewBounds.top = currentView.getCenter().y - currentView.getSize().y / 2.f;
+			game.viewBounds.width = currentView.getSize().x;
+			game.viewBounds.height = currentView.getSize().y;
 		}
-		else if (!(playerState & STATE_ALIVE))
+		else if (!(game.playerState & EntityStates::STATE_ALIVE))
 		{
-			engineSystems &= ~ENGINE_INPUT;
-			engineSystems &= ~ENGINE_AI;
-			engineSystems &= ~ENGINE_COLLISION;
+			game.engineFlags &= ~EngineSystems::ENGINE_INPUT;
+			game.engineFlags &= ~EngineSystems::ENGINE_AI;
+			game.engineFlags &= ~EngineSystems::ENGINE_COLLISION;
 		}
 		
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -477,18 +521,18 @@ int main()
 		{
 			if (event.type == sf::Event::Closed) window.close();
 
-			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::Escape) gameState ^= GAME_PAUSE;
+			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::Escape) game.gameFlags ^= GameplayStatus::GAME_PAUSE;
 
-			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) playerState ^= STATE_ALIVE;
+			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) game.playerState ^= EntityStates::STATE_ALIVE;
 
 
-			if (gameState & GAME_PAUSE)
+			if (game.gameFlags & GameplayStatus::GAME_PAUSE)
 			{
-				if (event.type == sf::Event::MouseButtonPressed) if (event.mouseButton.button == sf::Mouse::Right) gameState ^= GAME_STATS;
+				if (event.type == sf::Event::MouseButtonPressed) if (event.mouseButton.button == sf::Mouse::Right) game.gameFlags ^= GameplayStatus::GAME_STATS;
 			}
-			else gameState &= ~GAME_STATS;
+			else game.gameFlags &= ~GameplayStatus::GAME_STATS;
 
-			if (engineSystems & ENGINE_DEBUG)
+			if (game.engineFlags & EngineSystems::ENGINE_DEBUG)
 			{
 				if (event.type == sf::Event::KeyPressed)
 				{
@@ -496,71 +540,71 @@ int main()
 				}
 			}
 
-			if (!(playerState & STATE_ALIVE)) break;
+			if (!(game.playerState & EntityStates::STATE_ALIVE)) break;
 
 			if (event.type == sf::Event::KeyPressed)
 			{
-				if (event.key.code == sf::Keyboard::D) playerInput |= INPUT_MOVERIGHT;
+				if (event.key.code == sf::Keyboard::D) game.playerInput |= PlayerInputs::INPUT_MOVERIGHT;
 
-				if (event.key.code == sf::Keyboard::S) playerInput |= INPUT_MOVEDOWN;
+				if (event.key.code == sf::Keyboard::S) game.playerInput |= PlayerInputs::INPUT_MOVEDOWN;
 
-				if (event.key.code == sf::Keyboard::A) playerInput |= INPUT_MOVELEFT;
+				if (event.key.code == sf::Keyboard::A) game.playerInput |= PlayerInputs::INPUT_MOVELEFT;
 
-				if (event.key.code == sf::Keyboard::W) playerInput |= INPUT_MOVEUP;
+				if (event.key.code == sf::Keyboard::W) game.playerInput |= PlayerInputs::INPUT_MOVEUP;
 			}
 
 			if (event.type == sf::Event::KeyReleased)
 			{
-				if (event.key.code == sf::Keyboard::D) playerInput &= ~INPUT_MOVERIGHT;
+				if (event.key.code == sf::Keyboard::D) game.playerInput &= ~PlayerInputs::INPUT_MOVERIGHT;
 
-				if (event.key.code == sf::Keyboard::S) playerInput &= ~INPUT_MOVEDOWN;
+				if (event.key.code == sf::Keyboard::S) game.playerInput &= ~PlayerInputs::INPUT_MOVEDOWN;
 
-				if (event.key.code == sf::Keyboard::A) playerInput &= ~INPUT_MOVELEFT;
+				if (event.key.code == sf::Keyboard::A) game.playerInput &= ~PlayerInputs::INPUT_MOVELEFT;
 
-				if (event.key.code == sf::Keyboard::W) playerInput &= ~INPUT_MOVEUP;
+				if (event.key.code == sf::Keyboard::W) game.playerInput &= ~PlayerInputs::INPUT_MOVEUP;
 			}
 
 			if (event.type == sf::Event::MouseButtonPressed)
 			{
-				if (event.mouseButton.button == sf::Mouse::Left) playerInput |= INPUT_SHOOT;
+				if (event.mouseButton.button == sf::Mouse::Left) game.playerInput |= PlayerInputs::INPUT_SHOOT;
 
-				if (event.mouseButton.button == sf::Mouse::Right) playerInput |= INPUT_GRAB;
+				if (event.mouseButton.button == sf::Mouse::Right) game.playerInput |= PlayerInputs::INPUT_GRAB;
 			}
 
 			if (event.type == sf::Event::MouseButtonReleased)
 			{
-				if (event.mouseButton.button == sf::Mouse::Left) playerInput &= ~INPUT_SHOOT;
+				if (event.mouseButton.button == sf::Mouse::Left) game.playerInput &= ~PlayerInputs::INPUT_SHOOT;
 
 				if (event.mouseButton.button == sf::Mouse::Right)
 				{
-					playerInput &= ~INPUT_GRAB;
-					playerInput |= INPUT_DROP;
+					game.playerInput &= ~PlayerInputs::INPUT_GRAB;
+					game.playerInput |= PlayerInputs::INPUT_DROP;
 				}
 			}
 
 			if (event.type == sf::Event::MouseWheelScrolled)
 			{
-				if (event.mouseWheelScroll.delta > 0) playerInput |= INPUT_ZOOMIN;
-				if (event.mouseWheelScroll.delta < 0) playerInput |= INPUT_ZOOMOUT;
+				if (event.mouseWheelScroll.delta > 0) game.playerInput |= PlayerInputs::INPUT_ZOOMIN;
+				if (event.mouseWheelScroll.delta < 0) game.playerInput |= PlayerInputs::INPUT_ZOOMOUT;
 			}	
 		}
 
-		if (engineSystems & ENGINE_INPUT)
+		if (game.engineFlags & EngineSystems::ENGINE_INPUT)
 		{
 			// HANDLE PLAYER SHOOT INPUT
-			if (playerInput & INPUT_SHOOT)
+			if (game.playerInput & PlayerInputs::INPUT_SHOOT)
 			{
-				for (int i = 0; i < bulletCount; i++)
+				for (int i = 0; i < game.bulletCount; i++)
 				{
-					int id = bulletIDs[i];
+					int id = game.bulletIDs[i];
 
-					if (!(states[id] & STATE_ALIVE))
+					if (!(game.states[id] & EntityStates::STATE_ALIVE))
 					{
-						states[id] |= STATE_ALIVE;
-						positions[id] = player.getPosition() + aim * BULLET_MUZZLE;
-						velocities[id] = aim * BULLET_SPEED;
+						game.states[id] |= EntityStates::STATE_ALIVE;
+						game.positions[id] = player.getPosition() + game.aim * BULLET_MUZZLE;
+						game.velocities[id] = game.aim * BULLET_SPEED;
 
-						health--;
+						game.health--;
 						regenTimer.restart();
 						break;
 					}
@@ -568,24 +612,24 @@ int main()
 			}
 
 			// HANDLE GRAB INPUT
-			if (playerInput & INPUT_GRAB)
+			if (game.playerInput & PlayerInputs::INPUT_GRAB)
 			{
-				if (grabbedID == -1)
+				if (game.grabbedID == -1)
 				{
 
-					for (int i = 0; i < itemCount; i++)
+					for (int i = 0; i < game.itemCount; i++)
 					{
-						int id = itemIDs[i];
+						int id = game.itemIDs[i];
 
-						if (states[id] & STATE_ALIVE)
+						if (game.states[id] & EntityStates::STATE_ALIVE)
 						{
-							sf::Vector2f delta = mousePos - positions[id];
+							sf::Vector2f delta = game.mousePos - game.positions[id];
 							float distSq = delta.x * delta.x + delta.y * delta.y;
 
 							if (distSq < GRAB_DISTANCE)
 							{
-								grabbedID = id;
-								states[id] |= STATE_GRABBED;
+								game.grabbedID = id;
+								game.states[id] |= EntityStates::STATE_GRABBED;
 								break;
 							}
 						}
@@ -594,55 +638,55 @@ int main()
 				}
 			}
 
-			if (playerInput & INPUT_DROP)
+			if (game.playerInput & PlayerInputs::INPUT_DROP)
 			{
-				velocities[grabbedID] *= DROP_FORCE;
-				states[grabbedID] &= ~STATE_GRABBED;
-				grabbedID = -1;
-				playerInput &= ~INPUT_DROP;
+				game.velocities[game.grabbedID] *= GameConfig::DROP_FORCE;
+				game.states[game.grabbedID] &= ~EntityStates::STATE_GRABBED;
+				game.grabbedID = -1;
+				game.playerInput &= ~PlayerInputs::INPUT_DROP;
 			}
 
 			// HANDLE PLAYER MOVEMENT INPUT
-			if (playerInput & 0b1111)
+			if (game.playerInput & 0b1111)
 			{
-				playerState |= STATE_MOVING;
-				if (playerInput & 0b1) velocity += { 1 * GamePhysics::PLAYER_TURNING, 0 };
-				if (playerInput & 0b10) velocity += { 0, 1 * GamePhysics::PLAYER_TURNING };
-				if (playerInput & 0b100) velocity -= { 1 * GamePhysics::PLAYER_TURNING, 0 };
-				if (playerInput & 0b1000) velocity -= { 0, 1 * GamePhysics::PLAYER_TURNING };
+				game.playerState |= EntityStates::STATE_MOVING;
+				if (game.playerInput & 0b1) game.velocity += { 1 * GamePhysics::PLAYER_TURNING, 0 };
+				if (game.playerInput & 0b10) game.velocity += { 0, 1 * GamePhysics::PLAYER_TURNING };
+				if (game.playerInput & 0b100) game.velocity -= { 1 * GamePhysics::PLAYER_TURNING, 0 };
+				if (game.playerInput & 0b1000) game.velocity -= { 0, 1 * GamePhysics::PLAYER_TURNING };
 			}
 			else
 			{
-				playerState &= ~STATE_MOVING;
-				velocity *= GamePhysics::PLAYER_FRICTION;
-				if (std::abs(velocity.x) < 0.01f) velocity.x = 0.f;
-				if (std::abs(velocity.y) < 0.01f) velocity.y = 0.f;
+				game.playerState &= ~EntityStates::STATE_MOVING;
+				game.velocity *= GamePhysics::PLAYER_FRICTION;
+				if (std::abs(game.velocity.x) < 0.01f) game.velocity.x = 0.f;
+				if (std::abs(game.velocity.y) < 0.01f) game.velocity.y = 0.f;
 			}
 
 			// HANDLE ZOOM
-			if (playerInput & INPUT_ZOOMIN)
+			if (game.playerInput & PlayerInputs::INPUT_ZOOMIN)
 			{
 				view.zoom(0.9f);
-				playerInput &= ~INPUT_ZOOMIN;
+				game.playerInput &= ~PlayerInputs::INPUT_ZOOMIN;
 			}
-			if (playerInput & INPUT_ZOOMOUT)
+			if (game.playerInput & PlayerInputs::INPUT_ZOOMOUT)
 			{
 				view.zoom(1.1f);
-				playerInput &= ~INPUT_ZOOMOUT;
+				game.playerInput &= ~PlayerInputs::INPUT_ZOOMOUT;
 			}
-			view.zoom(zoom);
+			view.zoom(game.zoom);
 		}
 		
 		// <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		// AI //
 		// <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-		if (engineSystems & ENGINE_AI)
+		if (game.engineFlags & EngineSystems::ENGINE_AI)
 		{
-			for (int i = 0; i < enemyCount; i++)
+			for (int i = 0; i < game.enemyCount; i++)
 			{
-				int id = enemyIDs[i];
+				int id = game.enemyIDs[i];
 
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
 				int neighborCount = 0;
 
@@ -650,23 +694,23 @@ int main()
 				sf::Vector2f alignment(0.f, 0.f);
 				sf::Vector2f cohesion(0.f, 0.f);
 
-				sf::Vector2f vel = velocities[id];
+				sf::Vector2f vel = game.velocities[id];
 
-				for (int j = 0; j < enemyCount; j++)
+				for (int j = 0; j < game.enemyCount; j++)
 				{
-					int jd = enemyIDs[j];
+					int jd = game.enemyIDs[j];
 
-					if (!(states[jd] & STATE_ALIVE)) continue;
+					if (!(game.states[jd] & EntityStates::STATE_ALIVE)) continue;
 
-					sf::Vector2f delta = positions[jd] - positions[id];
+					sf::Vector2f delta = game.positions[jd] - game.positions[id];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
 					if (distSq < FlockAI::FLOCK_RADIUS * FlockAI::FLOCK_RADIUS)
 					{
 						float dist = std::sqrt(distSq);
 						separation -= delta / (dist + 1.f);
-						alignment += velocities[jd];
-						cohesion += positions[jd];
+						alignment += game.velocities[jd];
+						cohesion += game.positions[jd];
 						neighborCount++;
 					}
 				}
@@ -675,14 +719,14 @@ int main()
 				{
 					alignment /= static_cast<float>(neighborCount);
 					cohesion /= static_cast<float>(neighborCount);
-					cohesion -= positions[id];
+					cohesion -= game.positions[id];
 
 					sf::Vector2f steer = separation * FlockAI::FLOCK_SEPARATION + alignment * FlockAI::FLOCK_ALIGNMENT + cohesion * FlockAI::FLOCK_COHESION;
 					vel += steer * deltaTime;
 
 					float speed = std::sqrt(vel.x * vel.x + vel.y * vel.y);
 					if (speed > FlockAI::FLOCK_SPEED) vel = (vel / speed) * FlockAI::FLOCK_SPEED;
-					velocities[id] = vel;
+					game.velocities[id] = vel;
 				}
 			}
 		}
@@ -739,81 +783,81 @@ int main()
 		// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		// UPDATE PHYSICS //
 		// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		if (engineSystems & ENGINE_PHYSICS)
+		if (game.engineFlags & EngineSystems::ENGINE_PHYSICS)
 		{
 			// ITEM PHYSICS
-			for (int i = 0; i < itemCount; i++)
+			for (int i = 0; i < game.itemCount; i++)
 			{
-				int id = itemIDs[i];
+				int id = game.itemIDs[i];
 
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
-				if (states[id] & STATE_GRABBED)
+				if (game.states[id] & EntityStates::STATE_GRABBED)
 				{
-					sf::Vector2f delta = mousePos - positions[id];
-					velocities[id] = delta * GamePhysics::GRAB_SPRING;
+					sf::Vector2f delta = game.mousePos - game.positions[id];
+					game.velocities[id] = delta * GamePhysics::GRAB_SPRING;
 				}
 
-				velocities[id] *= GamePhysics::ITEM_FRICTION;
+				game.velocities[id] *= GamePhysics::ITEM_FRICTION;
 			}
 
 			// ENEMY PHYSICS
-			for (int i = 0; i < enemyCount; i++)
+			for (int i = 0; i < game.enemyCount; i++)
 			{
-				int id = enemyIDs[i];
+				int id = game.enemyIDs[i];
 
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
-				velocities[id] *= GamePhysics::ENEMY_FRICTION;
+				game.velocities[id] *= GamePhysics::ENEMY_FRICTION;
 			}
 
 			// BULLET PHYSICS
-			for (int i = 0; i < bulletCount; i++)
+			for (int i = 0; i < game.bulletCount; i++)
 			{
-				int id = bulletIDs[i];
+				int id = game.bulletIDs[i];
 
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
-				float angle = std::atan2(velocities[id].y, velocities[id].x) * 180.f / 3.14159265f;
-				rotations[id] = angle + 90;
+				float angle = std::atan2(game.velocities[id].y, game.velocities[id].x) * 180.f / 3.14159265f;
+				game.rotations[id] = angle + 90;
 			}
 
 			// PLAYER PHYSICS
-			if (playerState & STATE_ALIVE && playerState & STATE_MOVING)
+			if (game.playerState & EntityStates::STATE_ALIVE && game.playerState & EntityStates::STATE_MOVING)
 			{
 				// Test performance - research alternatives.
-				float distSqVel = velocity.x * velocity.x + velocity.y * velocity.y;
+				float distSqVel = game.velocity.x * game.velocity.x + game.velocity.y * game.velocity.y;
 				float distVel = std::sqrt(distSqVel);
 				if (distVel == 0.0f) distVel = 0.001f;
-				velocity = (velocity / distVel) * GamePhysics::PLAYER_SPEED;
+				game.velocity = (game.velocity / distVel) * GamePhysics::PLAYER_SPEED;
 
-				position += velocity * deltaTime;
+				game.position += game.velocity * deltaTime;
 
-				float velSq = velocity.x * velocity.x + velocity.y * velocity.y;
-				if (velSq > 0.01f) playerState |= STATE_MOVING;
+				float velSq = game.velocity.x * game.velocity.x + game.velocity.y * game.velocity.y;
+				if (velSq > 0.01f) game.playerState |= EntityStates::STATE_MOVING;
 
-				if (playerState & STATE_MOVING) velocity *= GamePhysics::PLAYER_FRICTION;
+				if (game.playerState & EntityStates::STATE_MOVING) game.velocity *= GamePhysics::PLAYER_FRICTION;
 
-				if (std::abs(velocity.x) < 0.01f) velocity.x = 0.f;
-				if (std::abs(velocity.y) < 0.01f) velocity.y = 0.f;
+				if (std::abs(game.velocity.x) < 0.01f) game.velocity.x = 0.f;
+				if (std::abs(game.velocity.y) < 0.01f) game.velocity.y = 0.f;
 
-				velSq = velocity.x * velocity.x + velocity.y * velocity.y;
-				if (velSq == 0.0f) playerState &= ~STATE_MOVING;
+				velSq = game.velocity.x * game.velocity.x + game.velocity.y * game.velocity.y;
+				if (velSq == 0.0f) game.playerState &= ~EntityStates::STATE_MOVING;
 			}
 
 			// ALL ENTITIES
-			for (int i = 0; i < entityCount; i++)
+			for (int i = 0; i < game.entityCount; i++)
 			{
-				if (!(states[i] & STATE_ALIVE)) continue;
+				if (!(game.states[i] & EntityStates::STATE_ALIVE)) continue;
 					
-				positions[i] += velocities[i] * deltaTime;
+				game.positions[i] += game.velocities[i] * deltaTime;
 			}
 		}
 
 		// ############################################################################################################################
 		// COLLISIONS AND INTERACTIONS //
 		// ############################################################################################################################
-		if (engineSystems & ENGINE_COLLISION)
+		if (game.engineFlags & EngineSystems::ENGINE_COLLISION)
 		{
 			/*
 			// ITEM COLLISION
@@ -845,26 +889,26 @@ int main()
 			*/
 
 			// ITEM-ENEMY COLLISION
-			for (int i = 0; i < itemCount; i++)
+			for (int i = 0; i < game.itemCount; i++)
 			{
-				int id = itemIDs[i];
+				int id = game.itemIDs[i];
 
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
-				for (int j = 0; j < enemyCount; j++)
+				for (int j = 0; j < game.enemyCount; j++)
 				{
-					int jd = itemIDs[j];
+					int jd = game.itemIDs[j];
 
-					if (!(states[jd] & STATE_ALIVE)) continue;
+					if (!(game.states[jd] & EntityStates::STATE_ALIVE)) continue;
 
-					sf::Vector2f delta = positions[id] - positions[jd];
+					sf::Vector2f delta = game.positions[id] - game.positions[jd];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
 					if (distSq < GameCollision::COLLISION_ITEM_ENEMY)
 					{
-						velocities[jd] += velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
+						game.velocities[jd] += game.velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
 
-						if (playerState & STATE_ALIVE)
+						if (game.playerState & EntityStates::STATE_ALIVE)
 						{
 							//enemies.state[j] &= ~0b1;
 							//enemyCount--;
@@ -877,14 +921,14 @@ int main()
 			}
 
 			// BULLET-WINDOW COLLISION
-			for (int i = 0; i < bulletCount; i++)
+			for (int i = 0; i < game.bulletCount; i++)
 			{
-				int id = bulletIDs[i];
+				int id = game.bulletIDs[i];
 
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
 				// BULLET-WINDOW COLLISION
-				if (!viewBounds.contains(positions[id]))
+				if (!game.viewBounds.contains(game.positions[id]))
 				{
 					killBullet(i);
 					break;
@@ -892,24 +936,24 @@ int main()
 			}
 
 			// BULLET-ITEM COLLISION
-			for (int i = 0; i < bulletCount; i++)
+			for (int i = 0; i < game.bulletCount; i++)
 			{
-				int id = bulletIDs[i];
+				int id = game.bulletIDs[i];
 
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
-				for (int j = 0; j < itemCount; j++)
+				for (int j = 0; j < game.itemCount; j++)
 				{
-					int jd = itemIDs[j];
+					int jd = game.itemIDs[j];
 
-					if (!(states[jd] & STATE_ALIVE)) continue;
+					if (!(game.states[jd] & EntityStates::STATE_ALIVE)) continue;
 
-					sf::Vector2f delta = positions[id] - positions[jd];
+					sf::Vector2f delta = game.positions[id] - game.positions[jd];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
 					if (distSq < GameCollision::COLLISION_BULLET_ITEM)
 					{
-						velocities[jd] += velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
+						game.velocities[jd] += game.velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
 						killBullet(i);
 						break;
 					}
@@ -917,30 +961,30 @@ int main()
 			}
 						
 			// BULLET-ENEMY COLLISION
-			for (int i = 0; i < bulletCount; i++)
+			for (int i = 0; i < game.bulletCount; i++)
 			{
-				int id = bulletIDs[i];
+				int id = game.bulletIDs[i];
 
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
 				// BULLET-ENEMY COLLISION
-				for (int j = 0; j < enemyCount; j++)
+				for (int j = 0; j < game.enemyCount; j++)
 				{
-					int jd = enemyIDs[j];
+					int jd = game.enemyIDs[j];
 
-					if (!(states[jd] & STATE_ALIVE)) continue;
+					if (!(game.states[jd] & EntityStates::STATE_ALIVE)) continue;
 
-					sf::Vector2f delta = positions[id] - positions[jd];
+					sf::Vector2f delta = game.positions[id] - game.positions[jd];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
 					if (distSq < GameCollision::COLLISION_BULLET_ENEMY)
 					{
-						velocities[jd] += velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
+						game.velocities[jd] += game.velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
 
-						if (playerState & STATE_ALIVE)
+						if (game.playerState & EntityStates::STATE_ALIVE)
 						{
-							states[jd] &= ~STATE_ALIVE;
-							enemyCount--;
+							game.states[jd] &= ~EntityStates::STATE_ALIVE;
+							game.enemyCount--;
 						}
 
 						killBullet(i);
@@ -950,19 +994,19 @@ int main()
 			}
 			
 			// ENEMY-PLAYER COLLISION
-			for (int i = 0; i < enemyCount; i++)
+			for (int i = 0; i < game.enemyCount; i++)
 			{
-				int id = enemyIDs[i];
+				int id = game.enemyIDs[i];
 
-				if (id < 0 || id >= ENEMY_MAX) continue;
-				if (!(states[id] & STATE_ALIVE)) continue;
+				if (id < 0 || id >= EntityCounts::ENEMY_MAX) continue;
+				if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
-				sf::Vector2f delta = position - positions[id];
+				sf::Vector2f delta = game.position - game.positions[id];
 				float distSq = delta.x * delta.x + delta.y * delta.y;
 
 				if (distSq < GameCollision::PLAYER_COLLISION)
 				{
-					health--;
+					game.health--;
 					regenTimer.restart();
 				}
 			}
@@ -972,61 +1016,61 @@ int main()
 		// UPDATE STATES //
 		// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 		// UPDATE HEALTH
-		if (health <= 0) playerState &= ~STATE_ALIVE;
+		if (game.health <= 0) game.playerState &= ~EntityStates::STATE_ALIVE;
 
-		if (health < PLAYER_HEALTH && regenTimer.getElapsedTime().asSeconds() > REGEN_TIME) health += REGEN_SPEED * deltaTime;
+		if (game.health < GameConfig::MAX_HEALTH && regenTimer.getElapsedTime().asSeconds() > GameConfig::REGEN_TIME) game.health += GameConfig::REGEN_SPEED * deltaTime;
 
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// RENDERING //
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// VFX
-		if (engineSystems & ENGINE_RENDERING && engineSystems & ENGINE_VFX)
+		if (game.engineFlags & EngineSystems::ENGINE_RENDERING && game.engineFlags & EngineSystems::ENGINE_VFX)
 		{
 			// PLAYER HEALTH VFX
-			if (health < PLAYER_HEALTH && playerState & STATE_ALIVE)
+			if (game.health < GameConfig::MAX_HEALTH && game.playerState & EntityStates::STATE_ALIVE)
 			{
-				float hurt = (1.0f - static_cast<float>(health) / PLAYER_HEALTH);
+				float hurt = (1.0f - static_cast<float>(game.health) / GameConfig::MAX_HEALTH);
 				sf::Color hurtingColor = sf::Color(255 * hurt, 0, 255 * (1 - hurt));
 				player.setFillColor(hurtingColor);
 			}
-			if (!(playerState & STATE_ALIVE)) player.setFillColor(sf::Color::Red);
-			if (health == PLAYER_HEALTH) player.setFillColor(sf::Color::Blue);
+			if (!(game.playerState & EntityStates::STATE_ALIVE)) player.setFillColor(sf::Color::Red);
+			if (game.health == GameConfig::MAX_HEALTH) player.setFillColor(sf::Color::Blue);
 
 			// ENEMY FLOCK DEBUG VFX
-			if (engineSystems & ENGINE_DEBUG && playerState & STATE_ALIVE)
+			if (game.engineFlags & EngineSystems::ENGINE_DEBUG && game.playerState & EntityStates::STATE_ALIVE)
 			{
-				for (int i = 0; i < enemyCount; i++)
+				for (int i = 0; i < game.enemyCount; i++)
 				{
-					int id = enemyIDs[i];
+					int id = game.enemyIDs[i];
 
-					if (!(states[id] & STATE_ALIVE)) continue;
+					if (!(game.states[id] & EntityStates::STATE_ALIVE)) continue;
 
-					for (int j = 0; j < enemyCount; j++)
+					for (int j = 0; j < game.enemyCount; j++)
 					{
-						int jd = enemyIDs[j];
+						int jd = game.enemyIDs[j];
 
-						if (!(states[jd] & STATE_ALIVE)) continue;
+						if (!(game.states[jd] & EntityStates::STATE_ALIVE)) continue;
 
-						sf::Vector2f delta = positions[jd] - positions[id];
+						sf::Vector2f delta = game.positions[jd] - game.positions[id];
 						float distSq = delta.x * delta.x + delta.y * delta.y;
 
-						if (distSq < FLOCK_LINE * FLOCK_LINE)
+						if (distSq < GameVFX::FLOCK_LINE * GameVFX::FLOCK_LINE)
 						{
-							sf::Vector2f midPoint = (positions[id] + positions[jd]) * 0.5f;
+							sf::Vector2f midPoint = (game.positions[id] + game.positions[jd]) * 0.5f;
 
 							sf::Vertex flockLine[] = {
-								sf::Vertex(positions[id], sf::Color::Red),
+								sf::Vertex(game.positions[id], sf::Color::Red),
 								sf::Vertex(midPoint, sf::Color::Black),
-								sf::Vertex(positions[jd], sf::Color::Red)
+								sf::Vertex(game.positions[jd], sf::Color::Red)
 							};
 
 							window.draw(flockLine, 3, sf::LineStrip);
 
-							if (distSq < FLOCK_HUDDLE * FLOCK_HUDDLE)
+							if (distSq < GameVFX::FLOCK_HUDDLE * GameVFX::FLOCK_HUDDLE)
 							{
-								sf::Vector2f midPoint = (positions[id] + positions[jd]) * 0.5f;
+								sf::Vector2f midPoint = (game.positions[id] + game.positions[jd]) * 0.5f;
 
-								sf::Vertex flockLine[] = { sf::Vertex(positions[id], sf::Color::Red), sf::Vertex(positions[jd], sf::Color::Red) };
+								sf::Vertex flockLine[] = { sf::Vertex(game.positions[id], sf::Color::Red), sf::Vertex(game.positions[jd], sf::Color::Red) };
 
 								window.draw(flockLine, 2, sf::LineStrip);
 							}
@@ -1043,63 +1087,63 @@ int main()
 		}
 		
 		// RENDER
-		if (engineSystems & ENGINE_RENDERING)
+		if (game.engineFlags & EngineSystems::ENGINE_RENDERING)
 		{
 			// RENDER ITEMS
-			for (int i = 0; i < itemCount; i++)
+			for (int i = 0; i < game.itemCount; i++)
 			{
-				int id = itemIDs[i];
+				int id = game.itemIDs[i];
 
-				if (states[id] & STATE_ALIVE)
+				if (game.states[id] & EntityStates::STATE_ALIVE)
 				{
-					item.setPosition(positions[id]);
+					item.setPosition(game.positions[id]);
 					window.draw(item);
 				}
 			}
 
 			// RENDER ENEMIES
-			for (int i = 0; i < enemyCount; i++)
+			for (int i = 0; i < game.enemyCount; i++)
 			{
-				int id = enemyIDs[i];
+				int id = game.enemyIDs[i];
 
-				if (states[id] & STATE_ALIVE)
+				if (game.states[id] & EntityStates::STATE_ALIVE)
 				{
-					enemy.setPosition(positions[id]);
+					enemy.setPosition(game.positions[id]);
 					window.draw(enemy);
 				}
 			}
 
 			// RENDER BULLETS
-			for (int i = 0; i < bulletCount; i++)
+			for (int i = 0; i < game.bulletCount; i++)
 			{
-				int id = bulletIDs[i];
+				int id = game.bulletIDs[i];
 
-				if (states[id] & STATE_ALIVE)
+				if (game.states[id] & EntityStates::STATE_ALIVE)
 				{
-					bullet.setRotation(rotations[id]);
-					bullet.setPosition(positions[id]);
+					bullet.setRotation(game.rotations[id]);
+					bullet.setPosition(game.positions[id]);
 					window.draw(bullet);
 				}
 			}
 
 			// RENDER PLAYER
-			if (playerState & STATE_ALIVE)
+			if (game.playerState & EntityStates::STATE_ALIVE)
 			{
-				float angle = std::atan2(aim.y, aim.x) * 180.f / 3.14159265f;
+				float angle = std::atan2(game.aim.y, game.aim.x) * 180.f / 3.14159265f;
 				player.setRotation(angle + 90);
 			}
-			player.setPosition(position);
+			player.setPosition(game.position);
 			window.draw(player);
 
 			// MOVE VIEW WINDOW
-			deadZone.left = view.getCenter().x - deadZone.width / 2.f;
-			deadZone.top = view.getCenter().y - deadZone.height / 2.f;
+			game.deadZone.left = view.getCenter().x - game.deadZone.width / 2.f;
+			game.deadZone.top = view.getCenter().y - game.deadZone.height / 2.f;
 
-			if (position.x < deadZone.left) view.move(position.x - deadZone.left, 0.f);
-			else if (position.x > deadZone.left + deadZone.width) view.move(position.x - (deadZone.left + deadZone.width), 0.f);
+			if (game.position.x < game.deadZone.left) view.move(game.position.x - game.deadZone.left, 0.f);
+			else if (game.position.x > game.deadZone.left + game.deadZone.width) view.move(game.position.x - (game.deadZone.left + game.deadZone.width), 0.f);
 
-			if (position.y < deadZone.top) view.move(0.f, position.y - deadZone.top);
-			else if (position.y > deadZone.top + deadZone.height) view.move(0.f, position.y - (deadZone.top + deadZone.height));
+			if (game.position.y < game.deadZone.top) view.move(0.f, game.position.y - game.deadZone.top);
+			else if (game.position.y > game.deadZone.top + game.deadZone.height) view.move(0.f, game.position.y - (game.deadZone.top + game.deadZone.height));
 
 			// CLAMP VIEW SIZE
 			if (view.getSize().x < 1 || view.getSize().y < 1) view.setSize({ 1,1 });
@@ -1107,17 +1151,17 @@ int main()
 		}
 		
 		// HUD
-		if (engineSystems & ENGINE_RENDERING && gameState & GAME_HUD)
+		if (game.engineFlags & EngineSystems::ENGINE_RENDERING && game.gameFlags & GameplayStatus::GAME_HUD)
 		{
 			window.setView(pauseView);
 
-			HUD.setString("HP " + std::to_string(health * 100 / PLAYER_HEALTH));
-			if (!(playerState & STATE_ALIVE)) HUD.setString("HP 0");
+			HUD.setString("HP " + std::to_string(game.health * 100 / GameConfig::MAX_HEALTH));
+			if (!(game.playerState & EntityStates::STATE_ALIVE)) HUD.setString("HP 0");
 
 			HUD.setFillColor(sf::Color::Red);
-			if (health > PLAYER_HEALTH * 0.20) HUD.setFillColor(sf::Color::Yellow);
-			if (health > PLAYER_HEALTH * 0.70) HUD.setFillColor(sf::Color::Green);
-			if (!(playerState & STATE_ALIVE)) HUD.setFillColor(sf::Color::Red);
+			if (game.health > GameConfig::MAX_HEALTH * 0.20) HUD.setFillColor(sf::Color::Yellow);
+			if (game.health > GameConfig::MAX_HEALTH * 0.70) HUD.setFillColor(sf::Color::Green);
+			if (!(game.playerState & EntityStates::STATE_ALIVE)) HUD.setFillColor(sf::Color::Red);
 
 			//HUD.setPosition(player.getPosition()); // Must be on same view.
 
@@ -1125,7 +1169,7 @@ int main()
 		}
 
 		// PAUSE SCREEN
-		if (engineSystems & ENGINE_RENDERING && gameState & GAME_PAUSE)
+		if (game.engineFlags & EngineSystems::ENGINE_RENDERING && game.gameFlags & GameplayStatus::GAME_PAUSE)
 		{
 			window.clear();
 			window.setView(pauseView);
@@ -1152,20 +1196,20 @@ int main()
 		}
 
 		// GAME OVER SCREEN
-		if (engineSystems & ENGINE_RENDERING && (playerState & STATE_ALIVE) == 0 && (gameState & GAME_PAUSE) == 0)
+		if (game.engineFlags & EngineSystems::ENGINE_RENDERING && (game.playerState & EntityStates::STATE_ALIVE) == 0 && (game.gameFlags & GameplayStatus::GAME_PAUSE) == 0)
 		{
 			window.setView(hudView);
 			window.draw(overText);
 
 			// GAME OVER VFX
-			if (engineSystems & ENGINE_VFX)
+			if (game.engineFlags & EngineSystems::ENGINE_VFX)
 			{
-				for (int i = 0; i < bulletCount; i++)
+				for (int i = 0; i < game.bulletCount; i++)
 				{
-					int id = bulletIDs[i];
+					int id = game.bulletIDs[i];
 
 					// SPAWN DEATH BULLETS
-					if (!(states[id] & STATE_ALIVE))
+					if (!(game.states[id] & EntityStates::STATE_ALIVE))
 					{
 						float deathSpin = rand() % 360 * GameVFX::DEATH_SPREAD;
 						if (deathSpin > 360.f) deathSpin -= 360.f;
@@ -1173,51 +1217,51 @@ int main()
 						float angle = deathSpin * 3.14159265f / 180.f;
 						sf::Vector2f dir = { std::cos(angle), std::sin(angle) };
 
-						states[id] |= STATE_ALIVE;
-						positions[id] = position + dir * GameVFX::DEATH_RADIUS;
-						velocities[id] = dir * GameVFX::DEATH_SPEED;
-						rotations[id] = angle + 90;
+						game.states[id] |= EntityStates::STATE_ALIVE;
+						game.positions[id] = game.position + dir * GameVFX::DEATH_RADIUS;
+						game.velocities[id] = dir * GameVFX::DEATH_SPEED;
+						game.rotations[id] = angle + 90;
 						break;
 					}
 
 					// DEATH BULLET-WINDOW COLLISION
-					if (!viewBounds.contains(positions[id]))
+					if (!game.viewBounds.contains(game.positions[id]))
 					{
 						killBullet(i);
 						break;
 					}
 
 					// DEATH BULLET-ITEM COLLISION
-					for (int j = 0; j < itemCount; j++)
+					for (int j = 0; j < game.itemCount; j++)
 					{
-						int jd = itemIDs[j];
+						int jd = game.itemIDs[j];
 
-						if (!(states[jd] & STATE_ALIVE)) continue;
+						if (!(game.states[jd] & EntityStates::STATE_ALIVE)) continue;
 
-						sf::Vector2f delta = positions[id] - positions[jd];
+						sf::Vector2f delta = game.positions[id] - game.positions[jd];
 						float distSq = delta.x * delta.x + delta.y * delta.y;
 
 						if (distSq < GameCollision::COLLISION_BULLET_ITEM)
 						{
-							velocities[jd] += velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
+							game.velocities[jd] += game.velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
 							killBullet(i);
 							break;
 						}
 					}
 
 					// DEATH BULLET-ENEMY COLLISION
-					for (int k = 0; k < enemyCount; k++)
+					for (int k = 0; k < game.enemyCount; k++)
 					{
-						int kd = enemyIDs[k];
+						int kd = game.enemyIDs[k];
 
-						if (!(states[kd] & STATE_ALIVE)) continue;
+						if (!(game.states[kd] & EntityStates::STATE_ALIVE)) continue;
 
-						sf::Vector2f delta = positions[id] - positions[kd];
+						sf::Vector2f delta = game.positions[id] - game.positions[kd];
 						float distSq = delta.x * delta.x + delta.y * delta.y;
 
 						if (distSq < GameCollision::COLLISION_BULLET_ENEMY)
 						{
-							velocities[kd] += velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
+							game.velocities[kd] += game.velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
 							killBullet(i);
 							break;
 						}
@@ -1227,7 +1271,7 @@ int main()
 		}
 
 		// STATS SCREEN
-		if (engineSystems & ENGINE_RENDERING && gameState & GAME_STATS)
+		if (game.engineFlags & EngineSystems::ENGINE_RENDERING && game.gameFlags & GameplayStatus::GAME_STATS)
 		{
 			window.clear(sf::Color::White);
 			pauseText.setFillColor(sf::Color::Black);
@@ -1238,15 +1282,15 @@ int main()
 		}
 
 		// VFX
-		if (engineSystems & ENGINE_RENDERING && engineSystems & ENGINE_VFX)
+		if (game.engineFlags & EngineSystems::ENGINE_RENDERING && game.engineFlags & EngineSystems::ENGINE_VFX)
 		{
 			// SHOOT & GRAB VFX
-			if (playerInput & 0b110000)
+			if (game.playerInput & 0b110000)
 			{
 				// Player-aim vector
 				sf::Color vfxColor = sf::Color::White;
-				if (playerInput & 0b10000) vfxColor = sf::Color::Red;		// This should be BULLET_COLOR
-				if (playerInput & 0b100000) vfxColor = sf::Color::Cyan;		// This should be TK_COLOR
+				if (game.playerInput & 0b10000) vfxColor = sf::Color::Red;		// This should be BULLET_COLOR
+				if (game.playerInput & 0b100000) vfxColor = sf::Color::Cyan;		// This should be TK_COLOR
 
 				player.setOutlineColor(vfxColor);
 
@@ -1317,7 +1361,7 @@ int main()
 		window.display();
 
 		// HANDLE SCREENSHOT
-		if (engineSystems & ENGINE_DEBUG && screensave) takeScreenshot(window);
+		if (game.engineFlags & EngineSystems::ENGINE_DEBUG && screensave) takeScreenshot(window);
     }
 
     return 0;
