@@ -3,7 +3,9 @@
 
 #include <cstdint>
 #include <iostream>
+#include <filesystem> 
 #include <chrono>
+#include <ctime>
 #include <cmath>
 #include <algorithm>
 #include <SFML/Graphics.hpp>
@@ -142,6 +144,8 @@ uint8_t playerState = 1;
 uint16_t playerInput = 0;
 
 bool screensave = false;
+
+int screenshotCount = 0;
 
 int health = PLAYER_HEALTH;
 
@@ -365,18 +369,27 @@ void initTexts()
 	countText.setFillColor(sf::Color::Red);
 }
 
-void takeScreenshot(sf::RenderWindow& window, const std::string& filename = "screenshot.png")
+void saveGame()
+{
+
+}
+
+void loadGame()
+{
+
+}
+
+void takeScreenshot(sf::RenderWindow& window)
 {
 	sf::Texture texture;
 	texture.create(window.getSize().x, window.getSize().y);
 	texture.update(window);
-
 	sf::Image screenshot = texture.copyToImage();
+
+	std::string filename = "screenshot" + std::to_string(screenshotCount) + ".png";
 	if (screenshot.saveToFile(filename)) std::cout << "Screenshot saved to " << filename << "\n";
-	{
-		
-	}
-	else std::cerr << "Failed to save screenshot.\n";
+
+	screenshotCount++;
 	screensave = false;
 }
 
@@ -384,7 +397,7 @@ int main()
 {
 	if (!font.loadFromFile("font.ttf"))
 	{
-		std::cout << "Error loading font!" << std::endl;
+		std::cout << "Error loading font!\n";
 		return -1;
 	}
 
@@ -429,7 +442,7 @@ int main()
 	
 	view.setCenter(player.getPosition());
 	window.setFramerateLimit(FPS_MAX);
-	
+
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
 	// MAIN LOOP //
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
@@ -942,8 +955,8 @@ int main()
 
 						if (playerState & STATE_ALIVE)
 						{
-							//enemies.state[j] &= ~0b1;
-							//enemyCount--;
+							states[jd] &= ~STATE_ALIVE;
+							enemyCount--;
 						}
 
 						killBullet(i);
@@ -1203,7 +1216,7 @@ int main()
 						if (distSq < COLLISION_BULLET_ITEM)
 						{
 							velocities[jd] += velocities[id] * DEATH_FORCE * deltaTime;
-							//killBullet(i);
+							killBullet(i);
 							break;
 						}
 					}
@@ -1221,7 +1234,7 @@ int main()
 						if (distSq < COLLISION_BULLET_ENEMY)
 						{
 							velocities[kd] += velocities[id] * DEATH_FORCE * deltaTime;
-							//killBullet(i);
+							killBullet(i);
 							break;
 						}
 					}
@@ -1313,10 +1326,12 @@ int main()
 			
 		}
 
+		// HANDLE WINDOW
 		window.setView(view);
 		window.display();
 
-		if (screensave) takeScreenshot(window);
+		// HANDLE SCREENSHOT
+		if (engineSystems & ENGINE_DEBUG && screensave) takeScreenshot(window);
     }
 
     return 0;
