@@ -11,82 +11,73 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Font.hpp>
 
-constexpr int WINDOW_WIDTH = 1000;
-constexpr int WINDOW_HEIGHT = 1000;
+namespace GameConfig
+{
+	constexpr int WINDOW_WIDTH = 1000;
+	constexpr int WINDOW_HEIGHT = 1000;
+	constexpr int FPS_MAX = 60;
+	constexpr float HUD_SIZE = 40;
+	constexpr float DEADZONE_WIDTH = 100;
+	constexpr float DEADZONE_HEIGHT = 100;
+	constexpr int ENTITY_RADIUS = 10;
+	constexpr int ENTITY_OUTLINE = 2;
 
-constexpr int FPS_MAX = 60;
+
+}
 
 constexpr int WORLD_WIDTH = 10000;
 constexpr int WORLD_HEIGHT = 10000;
 
-constexpr int ENTITY_RADIUS = 10;
-constexpr int ENTITY_OUTLINE = 2;
-
-constexpr int PLAYER_HEALTH = 200;
-
-constexpr float PLAYER_SPEED = 200;
-constexpr float PLAYER_TURNING = 20;
-constexpr float PLAYER_FRICTION = 0.2;
-
-constexpr float PLAYER_COLLISION = 100;
-
-constexpr float GRAB_DISTANCE = 100;
-constexpr float GRAB_SPRING = 5;
-constexpr float DROP_FORCE = 3;
-
-constexpr float ITEM_FRICTION = 0.9f;
-
-constexpr float ENEMY_FRICTION = 0.8;
-constexpr float ENEMY_SPREAD = 200;
-constexpr float ENEMY_BOUNCE = 30;
-constexpr float ENEMY_LINE = 1000;
-
-constexpr const float FLOCK_RADIUS = 200;
-constexpr const float FLOCK_HUDDLE = 50;
-constexpr const float FLOCK_SPEED = 20;
-constexpr const float FLOCK_SEPARATION = 100.0;
-constexpr const float FLOCK_ALIGNMENT = 10.0;
-constexpr const float FLOCK_COHESION = 5.0;
-
-/*
-LEVELS:
-// NAME
-- FLOCK RADIUS 300
-
-
-// SPIKES
-const float FLOCK_RADIUS = 2000;
-const float FLOCK_SPEED = 20;
-const float FLOCK_SEPARATION = 10.0;
-const float FLOCK_ALIGNMENT = 10.0;
-const float FLOCK_COHESION = 5.0;
-Red to Black lines between all.
-*/
-
 constexpr float BULLET_SPEED = 400;
 constexpr float BULLET_MUZZLE = 20;
-constexpr float BULLET_FORCE = 0.8;
-constexpr float BULLET_TRAIL = 0.05;
-constexpr float BULLET_SQDIST = 5000;
+constexpr float GRAB_DISTANCE = 100;
+constexpr float DROP_FORCE = 3;
 
-constexpr float COLLISION_ITEM_ENEMY = 100;
-constexpr float COLLISION_ITEM_PLAYER = 50;
-constexpr float COLLISION_BULLET_ITEM = 100;
-constexpr float COLLISION_BULLET_ENEMY = 50;
+namespace FlockAI
+{
+	constexpr const float FLOCK_RADIUS = 200;
+	constexpr const float FLOCK_SPEED = 20;
+	constexpr const float FLOCK_SEPARATION = 100.0;
+	constexpr const float FLOCK_ALIGNMENT = 10.0;
+	constexpr const float FLOCK_COHESION = 5.0;
+}
 
-constexpr float DEATH_SPEED = 100;
-constexpr float DEATH_RADIUS = 30;
-constexpr float DEATH_SPREAD = 1;
-constexpr float DEATH_FORCE = 5;
+namespace GamePhysics
+{
+	constexpr float PLAYER_SPEED = 200;
+	constexpr float PLAYER_TURNING = 15;
+	constexpr float PLAYER_FRICTION = 0.2;
+	constexpr float GRAB_SPRING = 5;
+	constexpr float ITEM_FRICTION = 0.9f;
+	constexpr float ENEMY_FRICTION = 0.8;
+}
 
+namespace GameCollision
+{
+	constexpr float PLAYER_COLLISION = 100;
+	constexpr float BULLET_FORCE = 0.8;
+	constexpr float COLLISION_ITEM_ENEMY = 100;
+	constexpr float COLLISION_ITEM_PLAYER = 50;
+	constexpr float COLLISION_BULLET_ITEM = 100;
+	constexpr float COLLISION_BULLET_ENEMY = 50;
+}
+
+constexpr int PLAYER_HEALTH = 200;
 constexpr float REGEN_TIME = 1;
 constexpr float REGEN_SPEED = 100;
 
-constexpr float DEADZONE_WIDTH = 100;
-constexpr float DEADZONE_HEIGHT = 100;
+constexpr const float FLOCK_LINE = FlockAI::FLOCK_RADIUS;
+constexpr const float FLOCK_HUDDLE = 50;
 
-constexpr float HUD_SIZE = 40;
+namespace GameVFX
+{
+	constexpr float DEATH_SPEED = 100;
+	constexpr float DEATH_RADIUS = 30;
+	constexpr float DEATH_SPREAD = 1;
+	constexpr float DEATH_FORCE = 5;
+}
 
+// Counts
 constexpr size_t ITEM_MAX = 100;
 constexpr size_t ENEMY_MAX = 2500;
 constexpr size_t BULLET_MAX = 500;
@@ -131,11 +122,6 @@ constexpr uint8_t STATE_HURT = 1 << 3;
 // ALIVE - Rendering
 // SLEEP - No physics
 // 
-
-// ENTITY TYPES
-constexpr uint8_t ENTITY_ITEM = 1 << 0;
-constexpr uint8_t ENTITY_ENEMY = 1 << 1;
-// .....
 
 uint8_t gameState = 0b1000;
 uint8_t engineSystems = 0b1111111;
@@ -197,7 +183,7 @@ sf::Event event;
 std::string countString;
 sf::Text countText(countString, font, 24);
 
-sf::Text HUD("HUD", font, HUD_SIZE);
+sf::Text HUD("HUD", font, GameConfig::HUD_SIZE);
 sf::Text overText("GAME OVER", font, 50);
 sf::Text pauseText("The game is paused. Press [Esc] to continue.", font, 24);
 
@@ -205,18 +191,18 @@ sf::Text triangleText("Enemy", font, 24);
 sf::Text squareText("Item", font, 24);
 sf::Text circleText("Player", font, 24);
 
-sf::CircleShape player(ENTITY_RADIUS, 3);
-sf::CircleShape item(ENTITY_RADIUS, 4);
-sf::CircleShape enemy(ENTITY_RADIUS, 3);
-sf::CircleShape bullet(ENTITY_RADIUS, 3);
-sf::CircleShape vfx(ENTITY_RADIUS, 3);
+sf::CircleShape player(GameConfig::ENTITY_RADIUS, 3);
+sf::CircleShape item(GameConfig::ENTITY_RADIUS, 4);
+sf::CircleShape enemy(GameConfig::ENTITY_RADIUS, 3);
+sf::CircleShape bullet(GameConfig::ENTITY_RADIUS, 3);
+sf::CircleShape vfx(GameConfig::ENTITY_RADIUS, 3);
 
 sf::CircleShape triangle(100.f, 3);
 sf::CircleShape square(100.f, 4);
 sf::CircleShape triangle2(100.f, 3);
 
-sf::RenderWindow window(sf::VideoMode({ WINDOW_WIDTH, WINDOW_HEIGHT }), "demoncore");
-sf::View view({ 0.f,200.f }, { WINDOW_WIDTH, WINDOW_HEIGHT });
+sf::RenderWindow window(sf::VideoMode({ GameConfig::WINDOW_WIDTH, GameConfig::WINDOW_HEIGHT }), "demoncore");
+sf::View view({ 0.f,200.f }, { GameConfig::WINDOW_WIDTH, GameConfig::WINDOW_HEIGHT });
 const sf::View pauseView = window.getDefaultView();
 const sf::View hudView = window.getDefaultView();
 
@@ -298,43 +284,43 @@ void killBullet(int i)
 
 void initShapes()
 {
-	player.setOrigin({ ENTITY_RADIUS, ENTITY_RADIUS });
+	player.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
 	player.setPosition(position);
 	player.setFillColor(sf::Color::Blue);
 	player.setOutlineColor(sf::Color::Transparent);
-	player.setOutlineThickness(ENTITY_OUTLINE);
+	player.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
 
-	bullet.setOrigin({ ENTITY_RADIUS, ENTITY_RADIUS });
+	bullet.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
 	bullet.setFillColor(sf::Color::Red);
 	bullet.setOutlineColor(sf::Color::Transparent);
-	bullet.setOutlineThickness(ENTITY_OUTLINE);
+	bullet.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
 
-	enemy.setOrigin({ ENTITY_RADIUS, ENTITY_RADIUS });
+	enemy.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
 	enemy.setFillColor(sf::Color::Red);
 	enemy.setOutlineColor(sf::Color::Transparent);
-	enemy.setOutlineThickness(ENTITY_OUTLINE);
+	enemy.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
 
-	item.setOrigin({ ENTITY_RADIUS, ENTITY_RADIUS });
+	item.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
 	item.setFillColor(sf::Color::Green);
 	item.setOutlineColor(sf::Color::Transparent);
-	item.setOutlineThickness(ENTITY_OUTLINE);
+	item.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
 
-	vfx.setOrigin({ ENTITY_RADIUS, ENTITY_RADIUS });
+	vfx.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
 	vfx.setFillColor(sf::Color::Transparent);
 	vfx.setOutlineColor(sf::Color::Transparent);
-	vfx.setOutlineThickness(ENTITY_OUTLINE);
+	vfx.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
 
 	triangle.setOrigin({ 100, 100 });
 	triangle.setFillColor(sf::Color::Red);
-	triangle.setPosition(WINDOW_WIDTH * 0.25, WINDOW_HEIGHT * 0.5);
+	triangle.setPosition(GameConfig::WINDOW_WIDTH * 0.25, GameConfig::WINDOW_HEIGHT * 0.5);
 
 	square.setOrigin({ 100, 100 });
 	square.setFillColor(sf::Color::Green);
-	square.setPosition(WINDOW_WIDTH * 0.5, WINDOW_HEIGHT * 0.5);
+	square.setPosition(GameConfig::WINDOW_WIDTH * 0.5, GameConfig::WINDOW_HEIGHT * 0.5);
 
 	triangle2.setOrigin({ 100, 100 });
 	triangle2.setFillColor(sf::Color::Blue);
-	triangle2.setPosition(WINDOW_WIDTH * 0.75, WINDOW_HEIGHT * 0.5);
+	triangle2.setPosition(GameConfig::WINDOW_WIDTH * 0.75, GameConfig::WINDOW_HEIGHT * 0.5);
 }
 
 void initTexts()
@@ -344,26 +330,26 @@ void initTexts()
 	HUD.setLetterSpacing(5);
 
 	pauseText.setFillColor(sf::Color::Black);
-	pauseText.setPosition(WINDOW_WIDTH * 0.5, WINDOW_HEIGHT * 0.2);
+	pauseText.setPosition(GameConfig::WINDOW_WIDTH * 0.5, GameConfig::WINDOW_HEIGHT * 0.2);
 	pauseText.setOrigin(pauseText.getLocalBounds().width * 0.5, pauseText.getLocalBounds().height * 0.5);
 
 	triangleText.setFillColor(sf::Color::White);
-	triangleText.setPosition(WINDOW_WIDTH * 0.25, WINDOW_HEIGHT * 0.7);
+	triangleText.setPosition(GameConfig::WINDOW_WIDTH * 0.25, GameConfig::WINDOW_HEIGHT * 0.7);
 	triangleText.setOrigin(triangleText.getLocalBounds().width * 0.5, triangleText.getLocalBounds().height * 0.5);
 
 	squareText.setFillColor(sf::Color::White);
-	squareText.setPosition(WINDOW_WIDTH * 0.5, WINDOW_HEIGHT * 0.7);
+	squareText.setPosition(GameConfig::WINDOW_WIDTH * 0.5, GameConfig::WINDOW_HEIGHT * 0.7);
 	squareText.setOrigin(squareText.getLocalBounds().width * 0.5, squareText.getLocalBounds().height * 0.5);
 
 	circleText.setFillColor(sf::Color::White);
-	circleText.setPosition(WINDOW_WIDTH * 0.75, WINDOW_HEIGHT * 0.7);
+	circleText.setPosition(GameConfig::WINDOW_WIDTH * 0.75, GameConfig::WINDOW_HEIGHT * 0.7);
 	circleText.setOrigin(circleText.getLocalBounds().width * 0.5, circleText.getLocalBounds().height * 0.5);
 
 	overText.setLetterSpacing(5);
 	overText.setFillColor(sf::Color::Black);
 	overText.setOutlineThickness(0);
 	overText.setOutlineColor(sf::Color::Black);
-	overText.setPosition(WINDOW_WIDTH * 0.5, WINDOW_HEIGHT * 0.5);
+	overText.setPosition(GameConfig::WINDOW_WIDTH * 0.5, GameConfig::WINDOW_HEIGHT * 0.5);
 	overText.setOrigin(overText.getLocalBounds().width * 0.5, overText.getLocalBounds().height * 0.5);
 
 	countText.setFillColor(sf::Color::Red);
@@ -434,14 +420,14 @@ int main()
 		initBullet();
 	}
 
-	deadZone.width = DEADZONE_WIDTH;
-	deadZone.height = DEADZONE_HEIGHT;
+	deadZone.width = GameConfig::DEADZONE_WIDTH;
+	deadZone.height = GameConfig::DEADZONE_HEIGHT;
 
 	initShapes();
 	initTexts();
 	
 	view.setCenter(player.getPosition());
-	window.setFramerateLimit(FPS_MAX);
+	window.setFramerateLimit(GameConfig::FPS_MAX);
 
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
 	// MAIN LOOP //
@@ -620,15 +606,15 @@ int main()
 			if (playerInput & 0b1111)
 			{
 				playerState |= STATE_MOVING;
-				if (playerInput & 0b1) velocity += { 1 * PLAYER_TURNING, 0 };
-				if (playerInput & 0b10) velocity += { 0, 1 * PLAYER_TURNING };
-				if (playerInput & 0b100) velocity -= { 1 * PLAYER_TURNING, 0 };
-				if (playerInput & 0b1000) velocity -= { 0, 1 * PLAYER_TURNING };
+				if (playerInput & 0b1) velocity += { 1 * GamePhysics::PLAYER_TURNING, 0 };
+				if (playerInput & 0b10) velocity += { 0, 1 * GamePhysics::PLAYER_TURNING };
+				if (playerInput & 0b100) velocity -= { 1 * GamePhysics::PLAYER_TURNING, 0 };
+				if (playerInput & 0b1000) velocity -= { 0, 1 * GamePhysics::PLAYER_TURNING };
 			}
 			else
 			{
 				playerState &= ~STATE_MOVING;
-				velocity *= PLAYER_FRICTION;
+				velocity *= GamePhysics::PLAYER_FRICTION;
 				if (std::abs(velocity.x) < 0.01f) velocity.x = 0.f;
 				if (std::abs(velocity.y) < 0.01f) velocity.y = 0.f;
 			}
@@ -675,7 +661,7 @@ int main()
 					sf::Vector2f delta = positions[jd] - positions[id];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
-					if (distSq < FLOCK_RADIUS * FLOCK_RADIUS)
+					if (distSq < FlockAI::FLOCK_RADIUS * FlockAI::FLOCK_RADIUS)
 					{
 						float dist = std::sqrt(distSq);
 						separation -= delta / (dist + 1.f);
@@ -691,11 +677,11 @@ int main()
 					cohesion /= static_cast<float>(neighborCount);
 					cohesion -= positions[id];
 
-					sf::Vector2f steer = separation * FLOCK_SEPARATION + alignment * FLOCK_ALIGNMENT + cohesion * FLOCK_COHESION;
+					sf::Vector2f steer = separation * FlockAI::FLOCK_SEPARATION + alignment * FlockAI::FLOCK_ALIGNMENT + cohesion * FlockAI::FLOCK_COHESION;
 					vel += steer * deltaTime;
 
 					float speed = std::sqrt(vel.x * vel.x + vel.y * vel.y);
-					if (speed > FLOCK_SPEED) vel = (vel / speed) * FLOCK_SPEED;
+					if (speed > FlockAI::FLOCK_SPEED) vel = (vel / speed) * FlockAI::FLOCK_SPEED;
 					velocities[id] = vel;
 				}
 			}
@@ -765,10 +751,10 @@ int main()
 				if (states[id] & STATE_GRABBED)
 				{
 					sf::Vector2f delta = mousePos - positions[id];
-					velocities[id] = delta * GRAB_SPRING;
+					velocities[id] = delta * GamePhysics::GRAB_SPRING;
 				}
 
-				velocities[id] *= ITEM_FRICTION;
+				velocities[id] *= GamePhysics::ITEM_FRICTION;
 			}
 
 			// ENEMY PHYSICS
@@ -778,7 +764,7 @@ int main()
 
 				if (!(states[id] & STATE_ALIVE)) continue;
 
-				velocities[id] *= ENEMY_FRICTION;
+				velocities[id] *= GamePhysics::ENEMY_FRICTION;
 			}
 
 			// BULLET PHYSICS
@@ -799,22 +785,20 @@ int main()
 				float distSqVel = velocity.x * velocity.x + velocity.y * velocity.y;
 				float distVel = std::sqrt(distSqVel);
 				if (distVel == 0.0f) distVel = 0.001f;
-				velocity = (velocity / distVel) * PLAYER_SPEED;
+				velocity = (velocity / distVel) * GamePhysics::PLAYER_SPEED;
 
 				position += velocity * deltaTime;
 
 				float velSq = velocity.x * velocity.x + velocity.y * velocity.y;
 				if (velSq > 0.01f) playerState |= STATE_MOVING;
 
-				if (playerState & STATE_MOVING) velocity *= ITEM_FRICTION;
+				if (playerState & STATE_MOVING) velocity *= GamePhysics::PLAYER_FRICTION;
 
 				if (std::abs(velocity.x) < 0.01f) velocity.x = 0.f;
 				if (std::abs(velocity.y) < 0.01f) velocity.y = 0.f;
 
 				velSq = velocity.x * velocity.x + velocity.y * velocity.y;
 				if (velSq == 0.0f) playerState &= ~STATE_MOVING;
-
-				//velocity *= PLAYER_FRICTION;
 			}
 
 			// ALL ENTITIES
@@ -876,9 +860,9 @@ int main()
 					sf::Vector2f delta = positions[id] - positions[jd];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
-					if (distSq < COLLISION_ITEM_ENEMY)
+					if (distSq < GameCollision::COLLISION_ITEM_ENEMY)
 					{
-						velocities[jd] += velocities[id] * BULLET_FORCE * deltaTime;
+						velocities[jd] += velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
 
 						if (playerState & STATE_ALIVE)
 						{
@@ -923,9 +907,9 @@ int main()
 					sf::Vector2f delta = positions[id] - positions[jd];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
-					if (distSq < COLLISION_BULLET_ITEM)
+					if (distSq < GameCollision::COLLISION_BULLET_ITEM)
 					{
-						velocities[jd] += velocities[id] * BULLET_FORCE * deltaTime;
+						velocities[jd] += velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
 						killBullet(i);
 						break;
 					}
@@ -949,9 +933,9 @@ int main()
 					sf::Vector2f delta = positions[id] - positions[jd];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
-					if (distSq < COLLISION_BULLET_ENEMY)
+					if (distSq < GameCollision::COLLISION_BULLET_ENEMY)
 					{
-						velocities[jd] += velocities[id] * BULLET_FORCE * deltaTime;
+						velocities[jd] += velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
 
 						if (playerState & STATE_ALIVE)
 						{
@@ -976,7 +960,7 @@ int main()
 				sf::Vector2f delta = position - positions[id];
 				float distSq = delta.x * delta.x + delta.y * delta.y;
 
-				if (distSq < PLAYER_COLLISION)
+				if (distSq < GameCollision::PLAYER_COLLISION)
 				{
 					health--;
 					regenTimer.restart();
@@ -1026,7 +1010,7 @@ int main()
 						sf::Vector2f delta = positions[jd] - positions[id];
 						float distSq = delta.x * delta.x + delta.y * delta.y;
 
-						if (distSq < FLOCK_RADIUS * FLOCK_RADIUS)
+						if (distSq < FLOCK_LINE * FLOCK_LINE)
 						{
 							sf::Vector2f midPoint = (positions[id] + positions[jd]) * 0.5f;
 
@@ -1183,15 +1167,15 @@ int main()
 					// SPAWN DEATH BULLETS
 					if (!(states[id] & STATE_ALIVE))
 					{
-						float deathSpin = rand() % 360 * DEATH_SPREAD;
+						float deathSpin = rand() % 360 * GameVFX::DEATH_SPREAD;
 						if (deathSpin > 360.f) deathSpin -= 360.f;
 
 						float angle = deathSpin * 3.14159265f / 180.f;
 						sf::Vector2f dir = { std::cos(angle), std::sin(angle) };
 
 						states[id] |= STATE_ALIVE;
-						positions[id] = position + dir * DEATH_RADIUS;
-						velocities[id] = dir * DEATH_SPEED;
+						positions[id] = position + dir * GameVFX::DEATH_RADIUS;
+						velocities[id] = dir * GameVFX::DEATH_SPEED;
 						rotations[id] = angle + 90;
 						break;
 					}
@@ -1213,9 +1197,9 @@ int main()
 						sf::Vector2f delta = positions[id] - positions[jd];
 						float distSq = delta.x * delta.x + delta.y * delta.y;
 
-						if (distSq < COLLISION_BULLET_ITEM)
+						if (distSq < GameCollision::COLLISION_BULLET_ITEM)
 						{
-							velocities[jd] += velocities[id] * DEATH_FORCE * deltaTime;
+							velocities[jd] += velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
 							killBullet(i);
 							break;
 						}
@@ -1231,9 +1215,9 @@ int main()
 						sf::Vector2f delta = positions[id] - positions[kd];
 						float distSq = delta.x * delta.x + delta.y * delta.y;
 
-						if (distSq < COLLISION_BULLET_ENEMY)
+						if (distSq < GameCollision::COLLISION_BULLET_ENEMY)
 						{
-							velocities[kd] += velocities[id] * DEATH_FORCE * deltaTime;
+							velocities[kd] += velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
 							killBullet(i);
 							break;
 						}
@@ -1249,6 +1233,8 @@ int main()
 			pauseText.setFillColor(sf::Color::Black);
 
 			window.draw(pauseText);
+
+
 		}
 
 		// VFX
