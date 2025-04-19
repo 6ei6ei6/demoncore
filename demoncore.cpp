@@ -14,8 +14,8 @@ constexpr int WINDOW_HEIGHT = 1000;
 
 constexpr int FPS_MAX = 60;
 
-constexpr int WORLD_WIDTH = 10000;
-constexpr int WORLD_HEIGHT = 10000;
+constexpr int WORLD_WIDTH = 50000;
+constexpr int WORLD_HEIGHT = 50000;
 
 constexpr int ENTITY_RADIUS = 10;
 constexpr int ENTITY_OUTLINE = 2;
@@ -41,7 +41,7 @@ constexpr float ENEMY_LINE = 1000;
 
 constexpr const float FLOCK_RADIUS = 200;
 constexpr const float FLOCK_HUDDLE = 100;
-constexpr const float FLOCK_SPEED = 200;
+constexpr const float FLOCK_SPEED = 20;
 constexpr const float FLOCK_SEPARATION = 100.0;
 constexpr const float FLOCK_ALIGNMENT = 10.0;
 constexpr const float FLOCK_COHESION = 5.0;
@@ -86,7 +86,7 @@ constexpr float DEADZONE_HEIGHT = 100;
 constexpr float HUD_SIZE = 40;
 
 constexpr size_t ITEM_MAX = 100;
-constexpr size_t ENEMY_MAX = 1000;
+constexpr size_t ENEMY_MAX = 2500;
 constexpr size_t BULLET_MAX = 500;
 constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX + BULLET_MAX;
 
@@ -141,11 +141,13 @@ uint8_t engineSystems = 0b1111110;
 uint8_t playerState = 1;
 uint16_t playerInput = 0;
 
-float zoom = 1.f;
-
 int health = PLAYER_HEALTH;
 
 int grabbedID = -1;
+
+float zoom = 1.f;
+
+float deltaTime;
 
 sf::Clock deltaClock;
 
@@ -157,6 +159,8 @@ sf::Vector2f position = { WORLD_WIDTH * 0.5 , WORLD_HEIGHT * 0.5 };
 sf::Vector2f velocity = { 0,0 };
 
 sf::Vector2f mousePos = { 0,0 };
+
+sf::FloatRect viewBounds;
 
 sf::FloatRect deadZone;
 
@@ -181,7 +185,12 @@ int bulletCount = 0;
 // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 sf::Font font;
+
 sf::Event event;
+
+std::string countString;
+sf::Text countText(countString, font, 24);
+
 sf::Text HUD("HUD", font, HUD_SIZE);
 sf::Text overText("GAME OVER", font, 50);
 sf::Text pauseText("The game is paused. Press [Esc] to continue.", font, 24);
@@ -189,9 +198,6 @@ sf::Text pauseText("The game is paused. Press [Esc] to continue.", font, 24);
 sf::Text triangleText("Enemy", font, 24);
 sf::Text squareText("Item", font, 24);
 sf::Text circleText("Player", font, 24);
-
-std::string countString;
-sf::Text countText(countString, font, 24);
 
 sf::CircleShape player(ENTITY_RADIUS, 3);
 sf::CircleShape item(ENTITY_RADIUS, 4);
@@ -406,33 +412,43 @@ int main()
 	window.setFramerateLimit(FPS_MAX);
 	
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
-	// WINDOW LOOP //
+	// MAIN LOOP //
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
 	while (window.isOpen())
 	{
-		if (playerState & 0b1) window.clear();
+		// SET UP FRAME //
+		if (playerState & STATE_ALIVE)
+		{
+			if (!(engineSystems & ENGINE_INPUT)) engineSystems |= ENGINE_INPUT;
+			if (!(engineSystems & ENGINE_AI)) engineSystems |= ENGINE_AI;
+
+			window.clear();
+			deltaTime = deltaClock.restart().asSeconds();
+
+			mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+
+			// Calculate aim
+			sf::Vector2f deltaAim = mousePos - player.getPosition();
+			float distSqAim = deltaAim.x * deltaAim.x + deltaAim.y * deltaAim.y;
+			float distAim = std::sqrt(distSqAim);
+			if (distAim == 0.0f) distAim = 0.0001f;
+			sf::Vector2f normalAim = deltaAim / distAim;
+			aim = normalAim;
+
+			// Get view bounds
+			sf::View currentView = window.getView();
+			viewBounds.left = currentView.getCenter().x - currentView.getSize().x / 2.f;
+			viewBounds.top = currentView.getCenter().y - currentView.getSize().y / 2.f;
+			viewBounds.width = currentView.getSize().x;
+			viewBounds.height = currentView.getSize().y;
+		}
+		else if (!(playerState & STATE_ALIVE))
+		{
+			engineSystems &= ~ENGINE_INPUT;
+			engineSystems &= ~ENGINE_AI;
+			//engineSystems &= ~ENGINE_COLLISION;
+		}
 		
-		// GET CURRENT VARIABLES //
-		float deltaTime = deltaClock.restart().asSeconds();
-
-		mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
-
-		// Calculate aim
-		sf::Vector2f deltaAim = mousePos - player.getPosition();
-		float distSqAim = deltaAim.x * deltaAim.x + deltaAim.y * deltaAim.y;
-		float distAim = std::sqrt(distSqAim);
-		if (distAim == 0.0f) distAim = 0.0001f;
-		sf::Vector2f normalAim = deltaAim / distAim;
-		aim = normalAim;
-
-		// Get view bounds
-		sf::FloatRect viewBounds;
-		sf::View currentView = window.getView();
-		viewBounds.left = currentView.getCenter().x - currentView.getSize().x / 2.f;
-		viewBounds.top = currentView.getCenter().y - currentView.getSize().y / 2.f;
-		viewBounds.width = currentView.getSize().x;
-		viewBounds.height = currentView.getSize().y;
-
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// PLAYER INPUT & EVENTS //
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -580,17 +596,12 @@ int main()
 				view.zoom(0.9f);
 				playerInput &= ~INPUT_ZOOMIN;
 			}
-
 			if (playerInput & INPUT_ZOOMOUT)
 			{
 				view.zoom(1.1f);
 				playerInput &= ~INPUT_ZOOMOUT;
 			}
-
 			view.zoom(zoom);
-			if (view.getSize().x < 1 || view.getSize().y < 1) view.setSize({ 1,1 });
-			if (view.getSize().x > WORLD_WIDTH || view.getSize().y > WORLD_HEIGHT) view.setSize({ WORLD_WIDTH,WORLD_HEIGHT });
-
 		}
 		
 		// <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
@@ -1049,7 +1060,7 @@ int main()
 			player.setPosition(position);
 			window.draw(player);
 
-			// Move view to follow player.
+			// MOVE VIEW WINDOW
 			deadZone.left = view.getCenter().x - deadZone.width / 2.f;
 			deadZone.top = view.getCenter().y - deadZone.height / 2.f;
 
@@ -1059,30 +1070,9 @@ int main()
 			if (position.y < deadZone.top) view.move(0.f, position.y - deadZone.top);
 			else if (position.y > deadZone.top + deadZone.height) view.move(0.f, position.y - (deadZone.top + deadZone.height));
 
-			/*
-			// ENEMY VFX
-			for (size_t i = 0; i < ENEMY_MAX; i++)
-			{
-				if (enemies.state[i] & 0b1)
-				{
-					for (size_t k = i + 1; k < ENEMY_MAX; k++)
-					{
-						if (enemies.state[k] & 0b1)
-						{
-							sf::Vector2f dirEne = enemies.position[k] - enemies.position[i];
-							float distSqEne = dirEne.x * dirEne.x + dirEne.y * dirEne.y;
-
-							if (distSqEne < ENEMY_LINE)
-							{
-								sf::Vertex enemyLine[] = { sf::Vertex(enemies.position[i], sf::Color::Red), sf::Vertex(enemies.position[k], sf::Color::Red) };
-								window.draw(enemyLine, 2, sf::Lines);
-							}
-						}
-					}
-
-				}
-			}
-			*/
+			// CLAMP VIEW SIZE
+			if (view.getSize().x < 1 || view.getSize().y < 1) view.setSize({ 1,1 });
+			//if (view.getSize().x > WORLD_WIDTH || view.getSize().y > WORLD_HEIGHT) view.setSize({ WORLD_WIDTH,WORLD_HEIGHT });
 		}
 		
 		// HUD
@@ -1286,9 +1276,8 @@ int main()
 			
 		}
 
-		// ****************************************************************************************************************************
 		window.setView(view);
-        window.display();
+		window.display();
     }
 
     return 0;
