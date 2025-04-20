@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <fstream>
 #include <filesystem> 
 #include <chrono>
 #include <ctime>
@@ -29,8 +30,8 @@ namespace GameConfig
 	constexpr float DEADZONE_HEIGHT = 100;
 }
 
-constexpr float BULLET_SPEED = 400; // Will be toggable in the future.
-constexpr float BULLET_MUZZLE = 20; // Will be toggable in the future.
+constexpr float BULLET_SPEED = 400; // Will be non const in the future.
+constexpr float BULLET_MUZZLE = 20; // Will be non const in the future.
 constexpr float GRAB_DISTANCE = 100; // Handled another way in the future.
 
 namespace FlockAI
@@ -77,7 +78,7 @@ namespace EntityCounts
 {
 	constexpr size_t ITEM_MAX = 100;
 	constexpr size_t ENEMY_MAX = 2500;
-	constexpr size_t BULLET_MAX = 500;
+	constexpr size_t BULLET_MAX = 5;
 	constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX + BULLET_MAX;
 }
 
@@ -122,48 +123,6 @@ namespace EntityStates
 	// ALIVE - Rendering
 	// SLEEP - No physics
 }
-
-/*
-struct GameState
-{
-uint8_t gameFlags = 0b1000;
-uint8_t engineFlags = 0b1111111;
-
-uint8_t playerState = 1;
-uint16_t playerInput = 0;
-
-int health = GameConfig::MAX_HEALTH;
-int grabbedID = -1;
-float zoom = 1.f;
-
-sf::Vector2f aim = { 0,0 };
-
-sf::Vector2f position = { GameConfig::WORLD_WIDTH * 0.5 , GameConfig::WORLD_HEIGHT * 0.5 };
-sf::Vector2f velocity = { 0,0 };
-
-sf::Vector2f mousePos = { 0,0 };
-
-sf::FloatRect viewBounds;
-
-sf::FloatRect deadZone;
-
-sf::Vector2f positions[EntityCounts::ENTITY_MAX];
-sf::Vector2f velocities[EntityCounts::ENTITY_MAX];
-
-float rotations[EntityCounts::ENTITY_MAX];
-
-uint8_t states[EntityCounts::ENTITY_MAX];
-
-int itemIDs[EntityCounts::ITEM_MAX];
-int enemyIDs[EntityCounts::ENEMY_MAX];
-int bulletIDs[EntityCounts::BULLET_MAX];
-
-int entityCount = 0;
-int itemCount = 0;
-int enemyCount = 0;
-int bulletCount = 0;
-};
-*/
 
 struct GameState
 {
@@ -211,13 +170,11 @@ struct GameState
 } game;
 
 bool screensave = false;
-
 int screenshotCount = 0;
 
 float deltaTime;
 
 sf::Clock deltaClock;
-
 sf::Clock regenTimer;
 
 sf::Font font;
@@ -250,10 +207,6 @@ sf::View view({ 0.f,200.f }, { GameConfig::WINDOW_WIDTH, GameConfig::WINDOW_HEIG
 const sf::View pauseView = window.getDefaultView();
 const sf::View hudView = window.getDefaultView();
 
-// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-// HELPERS //
-// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-// All-encompasing spawn entity function.
 int spawnEntity(sf::Vector2f pos, sf::Vector2f vel, float rot, uint8_t state)
 {
 	if (game.entityCount == EntityCounts::ENTITY_MAX) return -1;
@@ -285,11 +238,15 @@ void spawnEnemy(sf::Vector2f pos)
 	if (id != -1) game.enemyIDs[game.enemyCount++] = id;
 }
 
-void initBullet()
+void spawnBullet(sf::Vector2f pos, sf::Vector2f vel)
 {
-	if (game.bulletCount == EntityCounts::BULLET_MAX) return;
+	if (game.bulletCount == EntityCounts::BULLET_MAX)
+	{
+		std::cout << "maxxed\n";
+		return;
+	}
 
-	int id = spawnEntity({0,0}, {}, 0, 0);
+	int id = spawnEntity(pos, vel, 0, EntityStates::STATE_ALIVE);
 	if (id != -1) game.bulletIDs[game.bulletCount++] = id;
 }
 
@@ -323,7 +280,8 @@ void killBullet(int i)
 
 	game.states[id] &= ~EntityStates::STATE_ALIVE;
 
-	game.bulletIDs[i] = game.bulletIDs[--game.bulletCount];
+	game.bulletIDs[i] = game.bulletIDs[game.bulletCount - 1];
+	game.bulletCount--;
 }
 
 void initShapes()
@@ -369,6 +327,12 @@ void initShapes()
 
 void initTexts()
 {
+	if (!font.loadFromFile("font.ttf"))
+	{
+		std::cout << "Error loading font!\n";
+		return;
+	}
+
 	HUD.setOutlineColor(sf::Color::Black);
 	HUD.setOutlineThickness(2);
 	HUD.setLetterSpacing(5);
@@ -401,12 +365,38 @@ void initTexts()
 
 void saveGame()
 {
+	std::ofstream out("save.txt", std::ios::binary);
+	if (out)
+	{
+		if (game.engineFlags & EngineSystems::ENGINE_DEBUG) std::cout << "Saving game...\n";
+	}
+	else
+	{
+		if (game.engineFlags & EngineSystems::ENGINE_DEBUG) std::cout << "Error saving game.\n";
+		return;
+	}
+	
+	out.write(reinterpret_cast<const char*>(&game), sizeof(GameState));
 
+	if (game.engineFlags & EngineSystems::ENGINE_DEBUG) std::cout << "Game saved!\n";
 }
 
 void loadGame()
 {
+	std::ifstream in("save.txt", std::ios::binary);
+	
+	if (in)
+	{
+		if(game.engineFlags & EngineSystems::ENGINE_DEBUG) std::cout << "Loading latest save...\n";
+	}
+	else
+	{
+		if (game.engineFlags & EngineSystems::ENGINE_DEBUG) std::cout << "Error loading game.\n";
+		return;
+	}
 
+	in.read(reinterpret_cast<char*>(&game), sizeof(GameState));
+	if (game.engineFlags & EngineSystems::ENGINE_DEBUG) std::cout << "Game loaded!\n";
 }
 
 void takeScreenshot(sf::RenderWindow& window)
@@ -417,7 +407,7 @@ void takeScreenshot(sf::RenderWindow& window)
 	sf::Image screenshot = texture.copyToImage();
 
 	std::string filename = "screenshot" + std::to_string(screenshotCount) + ".png";
-	if (screenshot.saveToFile(filename)) std::cout << "Screenshot saved to " << filename << "\n";
+	if (screenshot.saveToFile(filename) && game.engineFlags & EngineSystems::ENGINE_DEBUG) std::cout << "Screenshot saved to " << filename << "\n";
 
 	screenshotCount++;
 	screensave = false;
@@ -425,12 +415,6 @@ void takeScreenshot(sf::RenderWindow& window)
 
 int main()
 {
-	if (!font.loadFromFile("font.ttf"))
-	{
-		std::cout << "Error loading font!\n";
-		return -1;
-	}
-
 	// SPAWN ITEMS
 	for (int i = 0; i < EntityCounts::ITEM_MAX; i++)
 	{
@@ -452,16 +436,6 @@ int main()
 
 			spawnEnemy(spawnPos);
 		}
-
-		
-	}
-
-	// INITIALIZE BULLETS
-	for (int i = 0; i < EntityCounts::BULLET_MAX; i++)
-	{
-		if (game.bulletCount >= EntityCounts::BULLET_MAX) break;
-
-		initBullet();
 	}
 
 	game.deadZone.width = GameConfig::DEADZONE_WIDTH;
@@ -478,6 +452,11 @@ int main()
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
 	while (window.isOpen())
 	{
+
+		//std::cout << game.bulletCount << "\n";
+
+
+
 		// SET UP FRAME //
 		if (game.playerState & EntityStates::STATE_ALIVE)
 		{
@@ -512,7 +491,7 @@ int main()
 			game.engineFlags &= ~EngineSystems::ENGINE_AI;
 			game.engineFlags &= ~EngineSystems::ENGINE_COLLISION;
 		}
-		
+
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// PLAYER INPUT & EVENTS //
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -537,6 +516,8 @@ int main()
 				if (event.type == sf::Event::KeyPressed)
 				{
 					if (event.key.code == sf::Keyboard::P) screensave = true;
+					if (event.key.code == sf::Keyboard::Tab) saveGame();
+					if (event.key.code == sf::Keyboard::BackSpace) loadGame();
 				}
 			}
 
@@ -594,20 +575,14 @@ int main()
 			// HANDLE PLAYER SHOOT INPUT
 			if (game.playerInput & PlayerInputs::INPUT_SHOOT)
 			{
-				for (int i = 0; i < game.bulletCount; i++)
+				if (game.bulletCount < EntityCounts::BULLET_MAX)
 				{
-					int id = game.bulletIDs[i];
+					sf::Vector2f pos = player.getPosition() + game.aim * BULLET_MUZZLE;
+					sf::Vector2f vel = game.aim * BULLET_SPEED;
+					spawnBullet(pos, vel);
 
-					if (!(game.states[id] & EntityStates::STATE_ALIVE))
-					{
-						game.states[id] |= EntityStates::STATE_ALIVE;
-						game.positions[id] = player.getPosition() + game.aim * BULLET_MUZZLE;
-						game.velocities[id] = game.aim * BULLET_SPEED;
-
-						game.health--;
-						regenTimer.restart();
-						break;
-					}
+					game.health--;
+					regenTimer.restart();				
 				}
 			}
 
