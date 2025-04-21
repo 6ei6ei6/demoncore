@@ -8,6 +8,10 @@
 #include <chrono>
 #include <ctime>
 #include <cmath>
+#include <thread>
+#include <vector>
+#include <string>
+#include <sstream>
 #include <algorithm>
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Font.hpp>
@@ -29,6 +33,10 @@ namespace GameConfig
 	constexpr float REGEN_SPEED = 100;
 	constexpr float DEADZONE_WIDTH = 100;
 	constexpr float DEADZONE_HEIGHT = 100;
+
+	constexpr size_t ITEM_MAX = 10;
+	constexpr size_t ENEMY_MAX = 10;//2500;
+	constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX;
 }
 
 constexpr float GRAB_DISTANCE = 100; // Handled another way in the future.
@@ -71,13 +79,6 @@ namespace GameVFX
 	constexpr float DEATH_RADIUS = 30;
 	constexpr float DEATH_SPREAD = 1;
 	constexpr float DEATH_FORCE = 5;
-}
-
-namespace EntityCounts
-{
-	constexpr size_t ITEM_MAX = 1;
-	constexpr size_t ENEMY_MAX = 1;//2500;
-	constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX;
 }
 
 // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -129,7 +130,6 @@ struct GameState
 	uint8_t gameFlags = 0b1000;
 	uint8_t engineFlags = 0b1111111;
 
-	uint8_t playerState = 1;
 	uint16_t playerInput = 0;
 
 	int health = GameConfig::HEALTH_MAX;
@@ -138,34 +138,249 @@ struct GameState
 
 	sf::Vector2f aim = { 0,0 };
 
-	sf::Vector2f position = { GameConfig::WORLD_WIDTH * 0.5 , GameConfig::WORLD_HEIGHT * 0.5 };
-	sf::Vector2f velocity = { 0,0 };
-
 	sf::Vector2f mousePos = { 0,0 };
 
 	sf::FloatRect viewBounds;
-
 	sf::FloatRect deadZone;
+	sf::FloatRect targetBounds;
 
 
 	// ======================
 
-	sf::Vector2f positions[EntityCounts::ENTITY_MAX];
-	sf::Vector2f velocities[EntityCounts::ENTITY_MAX];
-
-	float rotations[EntityCounts::ENTITY_MAX];
-
-	uint8_t states[EntityCounts::ENTITY_MAX];
-
-	int itemIDs[EntityCounts::ITEM_MAX];
-	int enemyIDs[EntityCounts::ENEMY_MAX];
-
 	int entityCount = 0;
+
+	int availableIDs[GameConfig::ENTITY_MAX];
+
+
+
+
+
+	sf::Vector2f positions[GameConfig::ENTITY_MAX];
+	sf::Vector2f velocities[GameConfig::ENTITY_MAX];
+
+	float rotations[GameConfig::ENTITY_MAX];
+
+	uint8_t states[GameConfig::ENTITY_MAX];
+
+	int itemIDs[GameConfig::ITEM_MAX];
+	int enemyIDs[GameConfig::ENEMY_MAX];
+
 	int itemCount = 0;
 	int enemyCount = 0;
 } game;
 
 // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+
+
+
+void printVec(const std::vector<int>& vec, const std::string& header)
+{
+	std::cout << "\n" << header << " : " << vec.size() << "\n";
+	for (int i = 0; i < vec.size(); i++)
+	{
+		std::cout << vec[i] << " ";
+	}
+	std::cout << "\n";
+}
+
+
+
+
+
+namespace PoolFlags
+{
+	constexpr uint8_t Spawned = 1 << 0;
+	constexpr uint8_t Possessed = 1 << 1;
+ 	constexpr uint8_t Awake = 1 << 2;
+ 	constexpr uint8_t Solid = 1 << 3;
+	constexpr uint8_t Visible = 1 << 4;
+	//constexpr uint8_t Visible = 1 << 5;
+	// 	constexpr uint8_t X = 1 << 6;
+	// 	constexpr uint8_t X = 1 << 7;
+}
+
+struct EntityPool
+{
+public:
+	int poolSize;
+
+	std::vector<int> availableIDs;
+	std::vector<int> activeIDs;
+
+	std::vector<uint8_t> flags;
+
+	std::vector<sf::Vector2f> position;
+	std::vector<sf::Vector2f> velocity;
+
+	EntityPool(int size) : poolSize(size)
+	{
+		availableIDs.reserve(size);
+		activeIDs.reserve(size);
+
+		flags.resize(size, 0);
+
+		position.resize(size, {0,0});
+		velocity.resize(size, {0,0});
+
+		for (int i = 0; i < poolSize; i++)
+		{
+			availableIDs.push_back(i);
+		}
+	}
+};
+
+EntityPool entities(5);
+
+int acquireEntity()
+{
+	if (entities.availableIDs.empty()) return -1;
+
+	int id = entities.availableIDs.back();
+	entities.availableIDs.pop_back();
+
+	entities.activeIDs.push_back(id);
+
+	return id;
+}
+
+void releaseEntity(int id)
+{
+	auto it = std::find(entities.activeIDs.begin(), entities.activeIDs.end(), id);
+	if (it != entities.activeIDs.end())
+	{
+		entities.activeIDs.erase(it);
+		entities.availableIDs.push_back(id);
+	}
+}
+
+void sspawnEnemy()
+{
+	int id = acquireEntity();
+	if (id == -1) return;
+	
+	entities.flags[id] |= PoolFlags::Spawned;
+	entities.flags[id] |= PoolFlags::Possessed;
+	entities.flags[id] |= PoolFlags::Awake;
+	entities.flags[id] |= PoolFlags::Solid;
+	entities.flags[id] |= PoolFlags::Visible;
+
+	sf::Vector2f spawnPos = { static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
+									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT) };
+
+	entities.position[id] = spawnPos;
+	entities.velocity[id] = { 0,0 };
+}
+
+void sspawnItem()
+{
+	int id = acquireEntity();
+	if (id == -1) return;
+
+	entities.flags[id] |= PoolFlags::Spawned;
+	entities.flags[id] |= PoolFlags::Solid;
+	entities.flags[id] |= PoolFlags::Visible;
+
+	sf::Vector2f spawnPos = { static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
+									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT) };
+
+	entities.position[id] = spawnPos;
+	entities.velocity[id] = { 0,0 };
+}
+
+
+int playerID = -1;
+
+void sspawnPlayer()
+{
+	int id = acquireEntity();
+	if (id == -1) return;
+	playerID = id;
+
+	entities.flags[id] |= PoolFlags::Spawned;
+	entities.flags[id] |= PoolFlags::Awake;
+	entities.flags[id] |= PoolFlags::Solid;
+	entities.flags[id] |= PoolFlags::Visible;
+
+	entities.position[id] = { 0,0 };
+	entities.velocity[id] = { 0,0 };
+}
+
+void sdestroyEntity()
+{
+	int id = entities.activeIDs.back();
+	//entities.flags[id] 0;
+	releaseEntity(id);
+}
+
+
+
+
+
+
+/*
+sf::CircleShape entityShape(60, 50);
+
+namespace RenderFlags
+{
+	constexpr uint8_t Enemy = 1 << 0;
+	constexpr uint8_t Item = 1 << 1;
+	constexpr uint8_t Player = 1 << 2;
+	constexpr uint8_t Pause = 1 << 3;
+	//constexpr uint8_t Visible = 1 << 4;
+	//constexpr uint8_t X = 1 << 5;
+	//constexpr uint8_t X = 1 << 6;
+}
+
+void setShape(sf::CircleShape& shape, uint8_t renderFlag)
+{
+	//shape.setRadius(GameConfig::SHAPE_RADIUS);
+	//shape.setOrigin({ GameConfig::SHAPE_RADIUS, GameConfig::SHAPE_RADIUS });
+	//shape.setOutlineColor(GameConfig::SHAPE_COLOR);
+	//shape.setOutlineThickness(GameConfig::SHAPE_OUTLINE);
+
+	if (renderFlag & RenderFlags::Enemy)
+	{
+		shape.setFillColor(sf::Color::Red);
+		shape.setPointCount(3);
+	}
+
+	if (renderFlag & RenderFlags::Item)
+	{
+		shape.setFillColor(sf::Color::Green);
+		shape.setPointCount(4);
+	}
+
+	if (renderFlag & RenderFlags::Player)
+	{
+		shape.setFillColor(sf::Color::Blue);
+		shape.setPointCount(3);
+
+	}
+
+	if (renderFlag & RenderFlags::Pause)
+	{
+		//shape.setScale()??
+		//shape.setRadius(100);
+		//shape.setRadius(GameConfig::PAUSE_RADIUS);
+	}
+}
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -218,7 +433,7 @@ const sf::View hudView = window.getDefaultView();
 void initShapes()
 {
 	player.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
-	player.setPosition(game.position);
+	//player.setPosition(game.position);
 	player.setFillColor(sf::Color::Blue);
 	player.setOutlineColor(sf::Color::Transparent);
 	player.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
@@ -346,13 +561,22 @@ void takeScreenshot(sf::RenderWindow& window)
 
 int main()
 {
-	sf::Vector2f mouseStart = game.mousePos;
+	sspawnPlayer();
 
+
+
+
+
+
+
+	sf::Vector2f mouseStart = game.mousePos;
+	
+	std::vector<int> values = { 100, 75, 42, 9001 };
 
 	// SPAWN ITEMS
-	for (int i = 0; i < EntityCounts::ITEM_MAX; i++)
+	for (int i = 0; i < GameConfig::ITEM_MAX; i++)
 	{
-		if (game.itemCount >= EntityCounts::ITEM_MAX) break;
+		if (game.itemCount >= GameConfig::ITEM_MAX) break;
 
 		sf::Vector2f spawnPos = {	static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
 									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT)};
@@ -361,9 +585,9 @@ int main()
 	}
 
 	// SPAWN ENEMIES
-	for (int i = 0; i < EntityCounts::ENEMY_MAX; i++)
+	for (int i = 0; i < GameConfig::ENEMY_MAX; i++)
 	{
-		if (game.enemyCount < EntityCounts::ENEMY_MAX)
+		if (game.enemyCount < GameConfig::ENEMY_MAX)
 		{
 			sf::Vector2f spawnPos = { static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
 									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT) };
@@ -386,13 +610,8 @@ int main()
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
 	while (window.isOpen())
 	{
-
-		//std::cout << game.bulletCount << "\n";
-
-
-
 		// SET UP FRAME //
-		if (game.playerState & EntityFlags::STATE_ALIVE)
+		if (entities.flags[playerID] & PoolFlags::Spawned)
 		{
 			if (!(game.engineFlags & EngineFlags::ENGINE_INPUT)) game.engineFlags |= EngineFlags::ENGINE_INPUT;
 			if (!(game.engineFlags & EngineFlags::ENGINE_AI)) game.engineFlags |= EngineFlags::ENGINE_AI;
@@ -419,12 +638,50 @@ int main()
 			game.viewBounds.width = currentView.getSize().x;
 			game.viewBounds.height = currentView.getSize().y;
 		}
-		else if (!(game.playerState & EntityFlags::STATE_ALIVE))
+		else if (!(entities.flags[playerID] & PoolFlags::Spawned))
 		{
 			game.engineFlags &= ~EngineFlags::ENGINE_INPUT;
 			game.engineFlags &= ~EngineFlags::ENGINE_AI;
 			game.engineFlags &= ~EngineFlags::ENGINE_COLLISION;
 		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		for (int i = 0; i < entities.activeIDs.size(); i++)
+		{
+			int id = entities.activeIDs[i];
+			if (id == playerID) continue;
+
+			sf::CircleShape shape(40, 40);
+			shape.setPosition(entities.position[id]);
+			shape.setFillColor(sf::Color::White);
+			shape.setOrigin(30, 40);
+			window.draw(shape);
+		}
+
+
+
+
+
+
 
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// PLAYER INPUT & EVENTS //
@@ -436,7 +693,7 @@ int main()
 
 			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::Escape) game.gameFlags ^= GameFlags::GAME_PAUSE;
 
-			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) game.playerState ^= EntityFlags::STATE_ALIVE;
+			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) entities.flags[playerID] ^= PoolFlags::Spawned;
 
 
 			if (game.gameFlags & GameFlags::GAME_PAUSE)
@@ -452,10 +709,15 @@ int main()
 					if (event.key.code == sf::Keyboard::P) screensave = true;
 					if (event.key.code == sf::Keyboard::Tab) saveGame();
 					if (event.key.code == sf::Keyboard::BackSpace) loadGame();
+
+					if (event.key.code == sf::Keyboard::Add) sspawnEnemy();
+					if (event.key.code == sf::Keyboard::Subtract) sdestroyEntity();
+					if (event.key.code == sf::Keyboard::Enter) ;
+
 				}
 			}
 
-			if (!(game.playerState & EntityFlags::STATE_ALIVE)) break;
+			if (!(entities.flags[playerID] & PoolFlags::Spawned)) break;
 
 			if (event.type == sf::Event::KeyPressed)
 			{
@@ -539,11 +801,20 @@ int main()
 				}
 			}
 
+			// HANDLE SHOOT & GRAB INPUT
 			if (game.playerInput & 0b110000)
 			{
-				game.health -= GameConfig::HEALTH_COST * deltaTime;
-				regenTimer.restart();
+				//game.health -= GameConfig::HEALTH_COST * deltaTime;
+				//regenTimer.restart();
 			}
+
+
+			sf::View currentView = window.getView();
+			game.viewBounds.left = currentView.getCenter().x - currentView.getSize().x / 2.f;
+			game.viewBounds.top = currentView.getCenter().y - currentView.getSize().y / 2.f;
+			game.viewBounds.width = currentView.getSize().x;
+			game.viewBounds.height = currentView.getSize().y;
+
 
 			if (game.playerInput & InputFlags::INPUT_DROP)
 			{
@@ -556,18 +827,27 @@ int main()
 			// HANDLE PLAYER MOVEMENT INPUT
 			if (game.playerInput & 0b1111)
 			{
-				game.playerState |= EntityFlags::STATE_MOVING;
-				if (game.playerInput & 0b1) game.velocity += { 1 * GamePhysics::PLAYER_TURNING, 0 };
-				if (game.playerInput & 0b10) game.velocity += { 0, 1 * GamePhysics::PLAYER_TURNING };
-				if (game.playerInput & 0b100) game.velocity -= { 1 * GamePhysics::PLAYER_TURNING, 0 };
-				if (game.playerInput & 0b1000) game.velocity -= { 0, 1 * GamePhysics::PLAYER_TURNING };
+				//game.playerState |= EntityFlags::STATE_MOVING;
+				//if (game.playerInput & 0b1) game.velocity += { 1 * GamePhysics::PLAYER_TURNING, 0 };
+				//if (game.playerInput & 0b10) game.velocity += { 0, 1 * GamePhysics::PLAYER_TURNING };
+				//if (game.playerInput & 0b100) game.velocity -= { 1 * GamePhysics::PLAYER_TURNING, 0 };
+				//if (game.playerInput & 0b1000) game.velocity -= { 0, 1 * GamePhysics::PLAYER_TURNING };
+				
+				if (game.playerInput & InputFlags::INPUT_MOVERIGHT) entities.velocity[playerID] += { 1 * GamePhysics::PLAYER_TURNING, 0 };
+				if (game.playerInput & InputFlags::INPUT_MOVEDOWN) entities.velocity[playerID] += { 0, 1 * GamePhysics::PLAYER_TURNING };
+				if (game.playerInput & InputFlags::INPUT_MOVELEFT) entities.velocity[playerID] -= { 1 * GamePhysics::PLAYER_TURNING, 0 };
+				if (game.playerInput & InputFlags::INPUT_MOVEUP) entities.velocity[playerID] -= { 0, 1 * GamePhysics::PLAYER_TURNING };
+
 			}
 			else
 			{
-				game.playerState &= ~EntityFlags::STATE_MOVING;
-				game.velocity *= GamePhysics::PLAYER_FRICTION;
-				if (std::abs(game.velocity.x) < 0.01f) game.velocity.x = 0.f;
-				if (std::abs(game.velocity.y) < 0.01f) game.velocity.y = 0.f;
+				//game.playerState &= ~EntityFlags::STATE_MOVING;
+				//game.velocity *= GamePhysics::PLAYER_FRICTION;
+				//if (std::abs(game.velocity.x) < 0.01f) game.velocity.x = 0.f;
+				//if (std::abs(game.velocity.y) < 0.01f) game.velocity.y = 0.f;
+
+				if (std::abs(entities.velocity[playerID].x) < 0.01f) entities.velocity[playerID].x = 0.f;
+				if (std::abs(entities.velocity[playerID].y) < 0.01f) entities.velocity[playerID].y = 0.f;
 			}
 
 			// HANDLE ZOOM
@@ -719,26 +999,16 @@ int main()
 			}
 
 			// PLAYER PHYSICS
-			if (game.playerState & EntityFlags::STATE_ALIVE && game.playerState & EntityFlags::STATE_MOVING)
+			if (entities.flags[playerID] & PoolFlags::Spawned) //&& game.playerState & EntityFlags::STATE_MOVING)
 			{
 				// Test performance - research alternatives.
-				float distSqVel = game.velocity.x * game.velocity.x + game.velocity.y * game.velocity.y;
+				float distSqVel = entities.velocity[playerID].x * entities.velocity[playerID].x + entities.velocity[playerID].y * entities.velocity[playerID].y;
 				float distVel = std::sqrt(distSqVel);
 				if (distVel == 0.0f) distVel = 0.001f;
-				game.velocity = (game.velocity / distVel) * GamePhysics::PLAYER_SPEED;
+				entities.velocity[playerID] = (entities.velocity[playerID] / distVel) * GamePhysics::PLAYER_SPEED;
 
-				game.position += game.velocity * deltaTime;
-
-				float velSq = game.velocity.x * game.velocity.x + game.velocity.y * game.velocity.y;
-				if (velSq > 0.01f) game.playerState |= EntityFlags::STATE_MOVING;
-
-				if (game.playerState & EntityFlags::STATE_MOVING) game.velocity *= GamePhysics::PLAYER_FRICTION;
-
-				if (std::abs(game.velocity.x) < 0.01f) game.velocity.x = 0.f;
-				if (std::abs(game.velocity.y) < 0.01f) game.velocity.y = 0.f;
-
-				velSq = game.velocity.x * game.velocity.x + game.velocity.y * game.velocity.y;
-				if (velSq == 0.0f) game.playerState &= ~EntityFlags::STATE_MOVING;
+				entities.velocity[playerID] *= GamePhysics::PLAYER_FRICTION;
+				entities.position[playerID] += entities.velocity[playerID] * deltaTime;
 			}
 
 			// ALL ENTITIES
@@ -804,7 +1074,7 @@ int main()
 					{
 						game.velocities[jd] += game.velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
 
-						if (game.playerState & EntityFlags::STATE_ALIVE)
+						if (entities.flags[playerID] & PoolFlags::Spawned)
 						{
 							//enemies.state[j] &= ~0b1;
 							//enemyCount--;
@@ -821,10 +1091,10 @@ int main()
 			{
 				int id = game.enemyIDs[i];
 
-				if (id < 0 || id >= EntityCounts::ENEMY_MAX) continue;
+				if (id < 0 || id >= GameConfig::ENEMY_MAX) continue;
 				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
 
-				sf::Vector2f delta = game.position - game.positions[id];
+				sf::Vector2f delta = entities.position[playerID] - game.positions[id];
 				float distSq = delta.x * delta.x + delta.y * delta.y;
 
 				if (distSq < GameCollision::PLAYER_COLLISION)
@@ -839,7 +1109,7 @@ int main()
 		// UPDATE STATES //
 		// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 		// UPDATE HEALTH
-		if (game.health <= 0) game.playerState &= ~EntityFlags::STATE_ALIVE;
+		if (game.health <= 0) entities.flags[playerID] &= ~PoolFlags::Spawned;
 
 		if (game.health < GameConfig::HEALTH_MAX && regenTimer.getElapsedTime().asSeconds() > GameConfig::REGEN_TIME) game.health += GameConfig::REGEN_SPEED * deltaTime;
 
@@ -850,7 +1120,7 @@ int main()
 		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && game.engineFlags & EngineFlags::ENGINE_VFX)
 		{
 			// PLAYER VFX
-			if (game.health < GameConfig::HEALTH_MAX && game.playerState & EntityFlags::STATE_ALIVE)
+			if (game.health < GameConfig::HEALTH_MAX && entities.flags[playerID] & PoolFlags::Spawned)
 			{
 				float hurt = (1.0f - static_cast<float>(game.health) / GameConfig::HEALTH_MAX);
 				
@@ -868,7 +1138,20 @@ int main()
 						hurtingColor = sf::Color(0, 255 * hurting, 255);
 					}
 
-					
+					sf::FloatRect& bounds = game.targetBounds;
+
+					sf::ConvexShape convex(4);
+					convex.setPoint(0, sf::Vector2f(bounds.left, bounds.top));
+					convex.setPoint(1, sf::Vector2f(bounds.left + bounds.width, bounds.top));
+					convex.setPoint(2, sf::Vector2f(bounds.left + bounds.width, bounds.top + bounds.height));
+					convex.setPoint(3, sf::Vector2f(bounds.left, bounds.top + bounds.height));
+
+					convex.setFillColor(sf::Color(0, 0, 0, 0));
+					convex.setOutlineColor(hurtingColor); // or hurtingColor
+					convex.setOutlineThickness(2.0f);
+					window.setView(view);
+
+					window.draw(convex);
 				}
 				else
 				{
@@ -886,7 +1169,7 @@ int main()
 			}
 
 			// ENEMY FLOCK DEBUG VFX
-			if (game.engineFlags & EngineFlags::ENGINE_DEBUG && game.playerState & EntityFlags::STATE_ALIVE)
+			if (game.engineFlags & EngineFlags::ENGINE_DEBUG && entities.flags[playerID] & PoolFlags::Spawned)
 			{
 				for (int i = 0; i < game.enemyCount; i++)
 				{
@@ -963,23 +1246,23 @@ int main()
 			}
 
 			// RENDER PLAYER
-			if (game.playerState & EntityFlags::STATE_ALIVE)
+			if (entities.flags[playerID] & PoolFlags::Spawned)
 			{
 				float angle = std::atan2(game.aim.y, game.aim.x) * 180.f / 3.14159265f;
 				player.setRotation(angle + 90);
 			}
-			player.setPosition(game.position);
+			player.setPosition(entities.position[playerID]);
 			window.draw(player);
 
 			// MOVE VIEW WINDOW
 			game.deadZone.left = view.getCenter().x - game.deadZone.width / 2.f;
 			game.deadZone.top = view.getCenter().y - game.deadZone.height / 2.f;
 
-			if (game.position.x < game.deadZone.left) view.move(game.position.x - game.deadZone.left, 0.f);
-			else if (game.position.x > game.deadZone.left + game.deadZone.width) view.move(game.position.x - (game.deadZone.left + game.deadZone.width), 0.f);
+			//if (game.position.x < game.deadZone.left) view.move(game.position.x - game.deadZone.left, 0.f);
+			//else if (game.position.x > game.deadZone.left + game.deadZone.width) view.move(game.position.x - (game.deadZone.left + game.deadZone.width), 0.f);
 
-			if (game.position.y < game.deadZone.top) view.move(0.f, game.position.y - game.deadZone.top);
-			else if (game.position.y > game.deadZone.top + game.deadZone.height) view.move(0.f, game.position.y - (game.deadZone.top + game.deadZone.height));
+			//if (game.position.y < game.deadZone.top) view.move(0.f, game.position.y - game.deadZone.top);
+			//else if (game.position.y > game.deadZone.top + game.deadZone.height) view.move(0.f, game.position.y - (game.deadZone.top + game.deadZone.height));
 
 			// CLAMP VIEW SIZE
 			if (view.getSize().x < 1 || view.getSize().y < 1) view.setSize({ 1,1 });
@@ -992,12 +1275,12 @@ int main()
 			window.setView(pauseView);
 
 			HUD.setString("HP " + std::to_string(game.health * 100 / GameConfig::HEALTH_MAX));
-			if (!(game.playerState & EntityFlags::STATE_ALIVE)) HUD.setString("HP 0");
+			if (!(entities.flags[playerID] & PoolFlags::Spawned)) HUD.setString("HP 0");
 
 			HUD.setFillColor(sf::Color::Red);
 			if (game.health > GameConfig::HEALTH_MAX * 0.20) HUD.setFillColor(sf::Color::Yellow);
 			if (game.health > GameConfig::HEALTH_MAX * 0.70) HUD.setFillColor(sf::Color::Green);
-			if (!(game.playerState & EntityFlags::STATE_ALIVE)) HUD.setFillColor(sf::Color::Red);
+			if (!(entities.flags[playerID] & PoolFlags::Spawned)) HUD.setFillColor(sf::Color::Red);
 
 			//HUD.setPosition(player.getPosition()); // Must be on same view.
 
@@ -1032,7 +1315,7 @@ int main()
 		}
 
 		// GAME OVER SCREEN
-		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && (game.playerState & EntityFlags::STATE_ALIVE) == 0 && (game.gameFlags & GameFlags::GAME_PAUSE) == 0)
+		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && (entities.flags[playerID] & PoolFlags::Spawned) == 0 && (game.gameFlags & GameFlags::GAME_PAUSE) == 0)
 		{
 			window.setView(hudView);
 			window.draw(overText);
