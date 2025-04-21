@@ -78,8 +78,7 @@ namespace EntityCounts
 {
 	constexpr size_t ITEM_MAX = 1;
 	constexpr size_t ENEMY_MAX = 1;//2500;
-	constexpr size_t BULLET_MAX = 5;
-	constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX + BULLET_MAX;
+	constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX;
 }
 
 // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -161,18 +160,20 @@ struct GameState
 
 	int itemIDs[EntityCounts::ITEM_MAX];
 	int enemyIDs[EntityCounts::ENEMY_MAX];
-	int bulletIDs[EntityCounts::BULLET_MAX];
-
-	int availableBulletIDs[EntityCounts::BULLET_MAX];
 
 	int entityCount = 0;
 	int itemCount = 0;
 	int enemyCount = 0;
-	int bulletCount = 0;
-
 } game;
 
 // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+
+
+
+
+
+
 
 bool screensave = false;
 int screenshotCount = 0;
@@ -507,15 +508,7 @@ int main()
 			// HANDLE PLAYER SHOOT INPUT
 			if (game.playerInput & InputFlags::INPUT_SHOOT)
 			{
-				if (game.bulletCount < EntityCounts::BULLET_MAX)
-				{
-					sf::Vector2f pos = player.getPosition() + game.aim * BULLET_MUZZLE;
-					sf::Vector2f vel = game.aim * BULLET_SPEED;
-					//spawnBullet(pos, vel);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
-
-					game.health--;
-					regenTimer.restart();	
-				}
+				
 			}
 
 			// HANDLE GRAB INPUT
@@ -718,17 +711,6 @@ int main()
 				game.velocities[id] *= GamePhysics::ENEMY_FRICTION;
 			}
 
-			// BULLET PHYSICS
-			for (int i = 0; i < game.bulletCount; i++)
-			{
-				int id = game.bulletIDs[i];
-
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
-
-				float angle = std::atan2(game.velocities[id].y, game.velocities[id].x) * 180.f / 3.14159265f;
-				game.rotations[id] = angle + 90;
-			}
-
 			// PLAYER PHYSICS
 			if (game.playerState & EntityFlags::STATE_ALIVE && game.playerState & EntityFlags::STATE_MOVING)
 			{
@@ -822,74 +804,6 @@ int main()
 						}
 
 						//states[id] &= ~STATE_ALIVE;
-						break;
-					}
-				}
-			}
-
-			// BULLET-WINDOW COLLISION
-			for (int i = 0; i < game.bulletCount; )
-			{
-				int id = game.bulletIDs[i];
-
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
-
-				//if (!game.viewBounds.contains(game.positions[id])) killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
-			}
-
-			// BULLET-ITEM COLLISION
-			for (int i = 0; i < game.bulletCount; i++)
-			{
-				int id = game.bulletIDs[i];
-
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
-
-				for (int j = 0; j < game.itemCount; j++)
-				{
-					int jd = game.itemIDs[j];
-
-					if (!(game.states[jd] & EntityFlags::STATE_ALIVE)) continue;
-
-					sf::Vector2f delta = game.positions[id] - game.positions[jd];
-					float distSq = delta.x * delta.x + delta.y * delta.y;
-
-					if (distSq < GameCollision::COLLISION_BULLET_ITEM)
-					{
-						game.velocities[jd] += game.velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
-						//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
-						break;
-					}
-				}
-			}
-						
-			// BULLET-ENEMY COLLISION
-			for (int i = 0; i < game.bulletCount; i++)
-			{
-				int id = game.bulletIDs[i];
-
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
-
-				// BULLET-ENEMY COLLISION
-				for (int j = 0; j < game.enemyCount; j++)
-				{
-					int jd = game.enemyIDs[j];
-
-					if (!(game.states[jd] & EntityFlags::STATE_ALIVE)) continue;
-
-					sf::Vector2f delta = game.positions[id] - game.positions[jd];
-					float distSq = delta.x * delta.x + delta.y * delta.y;
-
-					if (distSq < GameCollision::COLLISION_BULLET_ENEMY)
-					{
-						game.velocities[jd] += game.velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
-
-						if (game.playerState & EntityFlags::STATE_ALIVE)
-						{
-							game.states[jd] &= ~EntityFlags::STATE_ALIVE;
-							game.enemyCount--;
-						}
-
-						//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 						break;
 					}
 				}
@@ -1015,19 +929,6 @@ int main()
 				}
 			}
 
-			// RENDER BULLETS
-			for (int i = 0; i < game.bulletCount; i++)
-			{
-				int id = game.bulletIDs[i];
-
-				if (game.states[id] & EntityFlags::STATE_ALIVE)
-				{
-					bullet.setRotation(game.rotations[id]);
-					bullet.setPosition(game.positions[id]);
-					window.draw(bullet);
-				}
-			}
-
 			// RENDER PLAYER
 			if (game.playerState & EntityFlags::STATE_ALIVE)
 			{
@@ -1106,6 +1007,7 @@ int main()
 			// GAME OVER VFX
 			if (game.engineFlags & EngineFlags::ENGINE_VFX)
 			{
+				/*
 				for (int i = 0; i < game.bulletCount; i++)
 				{
 					int id = game.bulletIDs[i];
@@ -1169,6 +1071,7 @@ int main()
 						}
 					}
 				}
+				*/
 			}
 		}
 
