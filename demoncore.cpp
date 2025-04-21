@@ -20,7 +20,8 @@ namespace GameConfig
 	constexpr int WORLD_HEIGHT = 10000;
 	constexpr int FPS_MAX = 60;
 	constexpr float HUD_SIZE = 40;
-	constexpr int MAX_HEALTH = 200;
+	constexpr int HEALTH_MAX = 200;
+	constexpr int HEALTH_COST = 100;
 	constexpr int ENTITY_RADIUS = 10;
 	constexpr int ENTITY_OUTLINE = 2;
 	constexpr float DROP_FORCE = 3;
@@ -30,8 +31,6 @@ namespace GameConfig
 	constexpr float DEADZONE_HEIGHT = 100;
 }
 
-constexpr float BULLET_SPEED = 400; // Will be non const in the future.
-constexpr float BULLET_MUZZLE = 20; // Will be non const in the future.
 constexpr float GRAB_DISTANCE = 100; // Handled another way in the future.
 
 namespace FlockAI
@@ -133,7 +132,7 @@ struct GameState
 	uint8_t playerState = 1;
 	uint16_t playerInput = 0;
 
-	int health = GameConfig::MAX_HEALTH;
+	int health = GameConfig::HEALTH_MAX;
 	int grabbedID = -1;
 	float zoom = 1.f;
 
@@ -197,6 +196,8 @@ sf::Text pauseText("The game is paused. Press [Esc] to continue.", font, 24);
 sf::Text triangleText("Enemy", font, 24);
 sf::Text squareText("Item", font, 24);
 sf::Text circleText("Player", font, 24);
+
+sf::Color hurtingColor = sf::Color::Blue;
 
 sf::CircleShape player(GameConfig::ENTITY_RADIUS, 3);
 sf::CircleShape item(GameConfig::ENTITY_RADIUS, 4);
@@ -345,7 +346,7 @@ void takeScreenshot(sf::RenderWindow& window)
 
 int main()
 {
-
+	sf::Vector2f mouseStart = game.mousePos;
 
 
 	// SPAWN ITEMS
@@ -536,6 +537,12 @@ int main()
 					}
 
 				}
+			}
+
+			if (game.playerInput & 0b110000)
+			{
+				game.health -= GameConfig::HEALTH_COST * deltaTime;
+				regenTimer.restart();
 			}
 
 			if (game.playerInput & InputFlags::INPUT_DROP)
@@ -834,7 +841,7 @@ int main()
 		// UPDATE HEALTH
 		if (game.health <= 0) game.playerState &= ~EntityFlags::STATE_ALIVE;
 
-		if (game.health < GameConfig::MAX_HEALTH && regenTimer.getElapsedTime().asSeconds() > GameConfig::REGEN_TIME) game.health += GameConfig::REGEN_SPEED * deltaTime;
+		if (game.health < GameConfig::HEALTH_MAX && regenTimer.getElapsedTime().asSeconds() > GameConfig::REGEN_TIME) game.health += GameConfig::REGEN_SPEED * deltaTime;
 
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// RENDERING //
@@ -842,15 +849,41 @@ int main()
 		// VFX
 		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && game.engineFlags & EngineFlags::ENGINE_VFX)
 		{
-			// PLAYER HEALTH VFX
-			if (game.health < GameConfig::MAX_HEALTH && game.playerState & EntityFlags::STATE_ALIVE)
+			// PLAYER VFX
+			if (game.health < GameConfig::HEALTH_MAX && game.playerState & EntityFlags::STATE_ALIVE)
 			{
-				float hurt = (1.0f - static_cast<float>(game.health) / GameConfig::MAX_HEALTH);
-				sf::Color hurtingColor = sf::Color(255 * hurt, 0, 255 * (1 - hurt));
+				float hurt = (1.0f - static_cast<float>(game.health) / GameConfig::HEALTH_MAX);
+				
+				if (game.playerInput & 0b110000)
+				{
+					if (game.playerInput & InputFlags::INPUT_SHOOT)
+					{
+						float hurting = hurt * 0.8;
+						hurtingColor = sf::Color(255 * hurting, 0, 255 * (1 - hurting));
+					}
+
+					if (game.playerInput & InputFlags::INPUT_GRAB)
+					{
+						float hurting = hurt * 0.8;
+						hurtingColor = sf::Color(0, 255 * hurting, 255);
+					}
+
+					
+				}
+				else
+				{
+					hurtingColor = sf::Color(0, 0, 255);
+				}
+				
+				//sf::Vertex line[] = { sf::Vertex(game.position, hurtingColor), sf::Vertex(game.mousePos, sf::Color::Black)};
+				//window.draw(line, 2, sf::Lines);
+
+				player.setOutlineThickness(hurt);
+				player.setOutlineColor(hurtingColor);
 				player.setFillColor(hurtingColor);
+
+				std::cout << hurt << std::endl;
 			}
-			if (!(game.playerState & EntityFlags::STATE_ALIVE)) player.setFillColor(sf::Color::Red);
-			if (game.health == GameConfig::MAX_HEALTH) player.setFillColor(sf::Color::Blue);
 
 			// ENEMY FLOCK DEBUG VFX
 			if (game.engineFlags & EngineFlags::ENGINE_DEBUG && game.playerState & EntityFlags::STATE_ALIVE)
@@ -958,12 +991,12 @@ int main()
 		{
 			window.setView(pauseView);
 
-			HUD.setString("HP " + std::to_string(game.health * 100 / GameConfig::MAX_HEALTH));
+			HUD.setString("HP " + std::to_string(game.health * 100 / GameConfig::HEALTH_MAX));
 			if (!(game.playerState & EntityFlags::STATE_ALIVE)) HUD.setString("HP 0");
 
 			HUD.setFillColor(sf::Color::Red);
-			if (game.health > GameConfig::MAX_HEALTH * 0.20) HUD.setFillColor(sf::Color::Yellow);
-			if (game.health > GameConfig::MAX_HEALTH * 0.70) HUD.setFillColor(sf::Color::Green);
+			if (game.health > GameConfig::HEALTH_MAX * 0.20) HUD.setFillColor(sf::Color::Yellow);
+			if (game.health > GameConfig::HEALTH_MAX * 0.70) HUD.setFillColor(sf::Color::Green);
 			if (!(game.playerState & EntityFlags::STATE_ALIVE)) HUD.setFillColor(sf::Color::Red);
 
 			//HUD.setPosition(player.getPosition()); // Must be on same view.
@@ -1092,12 +1125,19 @@ int main()
 			// SHOOT & GRAB VFX
 			if (game.playerInput & 0b110000)
 			{
-				// Player-aim vector
-				sf::Color vfxColor = sf::Color::White;
-				if (game.playerInput & 0b10000) vfxColor = sf::Color::Red;		// This should be BULLET_COLOR
-				if (game.playerInput & 0b100000) vfxColor = sf::Color::Cyan;		// This should be TK_COLOR
+				
 
-				player.setOutlineColor(vfxColor);
+
+
+
+
+
+
+
+
+
+
+
 
 				//sf::Vertex aimLine[] = { sf::Vertex(player.getPosition(), vfxColor), sf::Vertex(player.getPosition() + aim * 50.f, sf::Color::Transparent) };
 				//window.draw(aimLine, 2, sf::Lines);
@@ -1130,35 +1170,7 @@ int main()
 				//{
 				//	item.setOutlineColor(sf::Color::Transparent);
 				//}
-			}
-
-			/*
-			for (size_t i = 0; i < BULLET_MAX; i++)
-			{
-				if (bullets.state[i] & STATE_ALIVE)
-				{
-					bullet.setRotation(bullets.rotation[i]);
-					bullet.setPosition(bullets.position[i]);
-					window.draw(bullet);
-				}
-			}
-
-			for (size_t i = 0; i < ENEMY_MAX; i++)
-			{
-				if (enemies.state[i] & STATE_ALIVE)
-				{
-					sf::Vector2f dirRot = player.getPosition() - enemies.position[i];
-					float angle = std::atan2(dirRot.y, dirRot.x) * 180.f / 3.14159265f;
-					if (!(enemies.state[i] & STATE_GRABBED)) enemy.setRotation(angle + 90);
-					enemy.setPosition(enemies.position[i]);
-					window.draw(enemy);
-				}
-			}
-			*/
-
-
-			
-			
+			}	
 		}
 
 		// HANDLE WINDOW
