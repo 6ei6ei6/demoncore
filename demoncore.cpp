@@ -82,6 +82,8 @@ namespace EntityCounts
 	constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX + BULLET_MAX;
 }
 
+// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
 namespace GameFlags
 {
 	constexpr uint8_t GAME_PAUSE = 1 << 0;
@@ -147,7 +149,8 @@ struct GameState
 
 	sf::FloatRect deadZone;
 
-	// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+	// ======================
 
 	sf::Vector2f positions[EntityCounts::ENTITY_MAX];
 	sf::Vector2f velocities[EntityCounts::ENTITY_MAX];
@@ -160,14 +163,16 @@ struct GameState
 	int enemyIDs[EntityCounts::ENEMY_MAX];
 	int bulletIDs[EntityCounts::BULLET_MAX];
 
+	int availableBulletIDs[EntityCounts::BULLET_MAX];
+
 	int entityCount = 0;
 	int itemCount = 0;
 	int enemyCount = 0;
 	int bulletCount = 0;
 
-	// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-
 } game;
+
+// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 bool screensave = false;
 int screenshotCount = 0;
@@ -207,78 +212,6 @@ sf::View view({ 0.f,200.f }, { GameConfig::WINDOW_WIDTH, GameConfig::WINDOW_HEIG
 const sf::View pauseView = window.getDefaultView();
 const sf::View hudView = window.getDefaultView();
 
-int spawnEntity(sf::Vector2f pos, sf::Vector2f vel, float rot, uint8_t state)
-{
-	if (game.entityCount == EntityCounts::ENTITY_MAX) return -1;
-
-	int id = game.entityCount++;
-
-	game.positions[id] = pos;
-	game.velocities[id] = vel;
-	game.rotations[id] = rot;
-	game.states[id] = state;
-
-	return id;
-}
-
-void spawnItem(sf::Vector2f pos)
-{
-	if (game.itemCount >= EntityCounts::ITEM_MAX) return;
-
-	int id = spawnEntity(pos, {}, 0, EntityFlags::STATE_ALIVE);
-
-	if (id != -1) game.itemIDs[game.itemCount++] = id;
-}
-
-void spawnEnemy(sf::Vector2f pos)
-{
-	if (game.enemyCount == EntityCounts::ENEMY_MAX) return;
-
-	int id = spawnEntity(pos, {}, 0, EntityFlags::STATE_ALIVE);
-	if (id != -1) game.enemyIDs[game.enemyCount++] = id;
-}
-
-void spawnBullet(sf::Vector2f pos, sf::Vector2f vel)
-{
-	if (game.bulletCount == EntityCounts::BULLET_MAX) return;
-
-	int id = spawnEntity(pos, vel, 0, EntityFlags::STATE_ALIVE);
-	std::cout << game.entityCount << " t\n";
-	if (id != -1) game.bulletIDs[game.bulletCount++] = id;
-}
-
-void killEntity(int id)
-{
-	if (id < 0 || id >= game.entityCount) return;
-
-	game.states[id] &= ~EntityFlags::STATE_ALIVE;
-	game.entityCount--;
-}
-
-void killItem(int id)
-{
-	if (id < 0 || id >= game.itemCount) return;
-
-	killEntity(id);
-	game.itemIDs[id] = game.itemIDs[--game.itemCount];
-}
-
-void killEnemy(int id)
-{
-	if (id < 0 || id >= game.enemyCount) return;
-
-	killEntity(id);
-	game.enemyIDs[id] = game.enemyIDs[--game.enemyCount];
-}
-
-void killBullet(int id)
-{
-	if (id < 0 || id >= game.bulletCount) return;
-
-	killEntity(id);
-	game.bulletIDs[id] = game.bulletIDs[game.bulletCount - 1];
-	game.bulletCount--;
-}
 
 void initShapes()
 {
@@ -411,6 +344,9 @@ void takeScreenshot(sf::RenderWindow& window)
 
 int main()
 {
+
+
+
 	// SPAWN ITEMS
 	for (int i = 0; i < EntityCounts::ITEM_MAX; i++)
 	{
@@ -419,7 +355,7 @@ int main()
 		sf::Vector2f spawnPos = {	static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
 									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT)};
 
-		spawnItem(spawnPos);
+		//spawnItem(spawnPos); <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3
 	}
 
 	// SPAWN ENEMIES
@@ -430,7 +366,7 @@ int main()
 			sf::Vector2f spawnPos = { static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
 									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT) };
 
-			spawnEnemy(spawnPos);
+			//spawnEnemy(spawnPos); <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 		}
 	}
 
@@ -575,7 +511,7 @@ int main()
 				{
 					sf::Vector2f pos = player.getPosition() + game.aim * BULLET_MUZZLE;
 					sf::Vector2f vel = game.aim * BULLET_SPEED;
-					spawnBullet(pos, vel);
+					//spawnBullet(pos, vel);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 
 					game.health--;
 					regenTimer.restart();	
@@ -892,18 +828,13 @@ int main()
 			}
 
 			// BULLET-WINDOW COLLISION
-			for (int i = 0; i < game.bulletCount; i++)
+			for (int i = 0; i < game.bulletCount; )
 			{
 				int id = game.bulletIDs[i];
 
 				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
 
-				// BULLET-WINDOW COLLISION
-				if (!game.viewBounds.contains(game.positions[id]))
-				{
-					killBullet(id);
-					break;
-				}
+				//if (!game.viewBounds.contains(game.positions[id])) killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 			}
 
 			// BULLET-ITEM COLLISION
@@ -925,7 +856,7 @@ int main()
 					if (distSq < GameCollision::COLLISION_BULLET_ITEM)
 					{
 						game.velocities[jd] += game.velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
-						killBullet(id);
+						//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 						break;
 					}
 				}
@@ -958,7 +889,7 @@ int main()
 							game.enemyCount--;
 						}
 
-						killBullet(id);
+						//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 						break;
 					}
 				}
@@ -1198,7 +1129,7 @@ int main()
 					// DEATH BULLET-WINDOW COLLISION
 					if (!game.viewBounds.contains(game.positions[id]))
 					{
-						killBullet(id);
+						//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 						break;
 					}
 
@@ -1215,7 +1146,7 @@ int main()
 						if (distSq < GameCollision::COLLISION_BULLET_ITEM)
 						{
 							game.velocities[jd] += game.velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
-							killBullet(id);
+							//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 							break;
 						}
 					}
@@ -1233,7 +1164,7 @@ int main()
 						if (distSq < GameCollision::COLLISION_BULLET_ENEMY)
 						{
 							game.velocities[kd] += game.velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
-							killBullet(id);
+							//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 							break;
 						}
 					}
