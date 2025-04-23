@@ -1,47 +1,35 @@
 // demoncore.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-#include <cstdint>
 #include <iostream>
 #include <fstream>
-#include <filesystem> 
 #include <chrono>
 #include <ctime>
 #include <cmath>
-#include <thread>
 #include <vector>
 #include <string>
-#include <sstream>
 #include <algorithm>
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Font.hpp>
 
-namespace GameConfig
+namespace ConfigData
 {
 	constexpr int WINDOW_WIDTH = 1000;
 	constexpr int WINDOW_HEIGHT = 1000;
-	constexpr int WORLD_WIDTH = 10000;
-	constexpr int WORLD_HEIGHT = 10000;
+	constexpr int WORLD_WIDTH = 1000;
+	constexpr int WORLD_HEIGHT = 1000;
 	constexpr int FPS_MAX = 60;
-	constexpr float HUD_SIZE = 40;
+	constexpr int HUD_SIZE = 40;
 	constexpr int HEALTH_MAX = 200;
-	constexpr int HEALTH_COST = 100;
-	constexpr int ENTITY_RADIUS = 10;
-	constexpr int ENTITY_OUTLINE = 2;
+	constexpr int HEALTH_COST = 70;
 	constexpr float DROP_FORCE = 3;
-	constexpr float REGEN_TIME = 1;
+	constexpr float REGEN_TIME = 0.2;
 	constexpr float REGEN_SPEED = 100;
 	constexpr float DEADZONE_WIDTH = 100;
 	constexpr float DEADZONE_HEIGHT = 100;
-
-	constexpr size_t ITEM_MAX = 10;
-	constexpr size_t ENEMY_MAX = 10;//2500;
-	constexpr size_t ENTITY_MAX = ITEM_MAX + ENEMY_MAX;
 }
 
-constexpr float GRAB_DISTANCE = 100; // Handled another way in the future.
-
-namespace FlockAI
+namespace FlockData
 {
 	constexpr const float FLOCK_RADIUS = 200;
 	constexpr const float FLOCK_SPEED = 20;
@@ -50,56 +38,43 @@ namespace FlockAI
 	constexpr const float FLOCK_COHESION = 5.0;
 }
 
-namespace GamePhysics
+namespace PhysicsData
 {
-	constexpr float PLAYER_SPEED = 200;
-	constexpr float PLAYER_TURNING = 15;
-	constexpr float PLAYER_FRICTION = 0.2;
+	constexpr float MAX_SPEED = 200; // Sprint = 300 ?
+	constexpr float TURN_SPEED = 10;
+	constexpr float ACCELERATION = 100;
+	constexpr float FRICTION = 0.8;
 	constexpr float GRAB_SPRING = 5;
-	constexpr float ITEM_FRICTION = 0.9f;
-	constexpr float ENEMY_FRICTION = 0.8;
 }
 
-namespace GameCollision
+namespace CollisionData
 {
-	constexpr float PLAYER_COLLISION = 100;
-	constexpr float BULLET_FORCE = 0.8;
-	constexpr float COLLISION_ITEM_ENEMY = 100;
-	constexpr float COLLISION_ITEM_PLAYER = 50;
-	constexpr float COLLISION_BULLET_ITEM = 100;
-	constexpr float COLLISION_BULLET_ENEMY = 50;
-}
+	constexpr float ENTITY_RADIUS = 10;
 
-namespace GameVFX
-{
-	constexpr const float FLOCK_LINE = FlockAI::FLOCK_RADIUS;
-	constexpr const float FLOCK_HUDDLE = 50;
+	constexpr float TARGET_PADDING = 2;
+	constexpr float ENTITY_TARGET = (ENTITY_RADIUS + TARGET_PADDING)
+								  * (ENTITY_RADIUS + TARGET_PADDING);
 
-	constexpr float DEATH_SPEED = 100;
-	constexpr float DEATH_RADIUS = 30;
-	constexpr float DEATH_SPREAD = 1;
-	constexpr float DEATH_FORCE = 5;
-}
+	constexpr float GRAB_PADDING = 10;
+	constexpr float ENTITY_GRAB = (ENTITY_RADIUS + GRAB_PADDING)
+								* (ENTITY_RADIUS + GRAB_PADDING);
 
-// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-
-namespace GameFlags
-{
-	constexpr uint8_t GAME_PAUSE = 1 << 0;
-	constexpr uint8_t GAME_STATS = 1 << 1; // Necessary?
-	constexpr uint8_t GAME_OVER = 1 << 2; // Deprecated
-	constexpr uint8_t GAME_HUD = 1 << 3; // Handle somewhere else in future
+	constexpr float COLLISION_PADDING = 10;
+	constexpr float ENTITY_COLLISION = (ENTITY_RADIUS + COLLISION_PADDING)
+									 * (ENTITY_RADIUS + COLLISION_PADDING);
 }
 
 namespace EngineFlags
 {
-	constexpr uint8_t ENGINE_DEBUG = 1 << 0;
-	constexpr uint8_t ENGINE_INPUT = 1 << 1;
-	constexpr uint8_t ENGINE_AI = 1 << 2;
-	constexpr uint8_t ENGINE_PHYSICS = 1 << 3;
-	constexpr uint8_t ENGINE_COLLISION = 1 << 4;
-	constexpr uint8_t ENGINE_RENDERING = 1 << 5;
-	constexpr uint8_t ENGINE_VFX = 1 << 6;
+	constexpr uint16_t ENGINE_PAUSE = 1 << 0;
+	constexpr uint16_t ENGINE_DEBUG = 1 << 1;
+	constexpr uint16_t ENGINE_INPUT = 1 << 2;
+	constexpr uint16_t ENGINE_AI = 1 << 3;
+	constexpr uint16_t ENGINE_PHYSICS = 1 << 4;
+	constexpr uint16_t ENGINE_COLLISION = 1 << 5;
+	constexpr uint16_t ENGINE_RENDERING = 1 << 6;
+	constexpr uint16_t ENGINE_VFX = 1 << 7;
+	constexpr uint16_t ENGINE_HUD = 1 << 8;
 }
 
 namespace InputFlags
@@ -113,97 +88,52 @@ namespace InputFlags
 	constexpr uint16_t INPUT_DROP = 1 << 6;
 	constexpr uint16_t INPUT_ZOOMIN = 1 << 7;
 	constexpr uint16_t INPUT_ZOOMOUT = 1 << 8;
+	constexpr uint16_t INPUT_BRAKERIGHT = 1 << 9;
+	constexpr uint16_t INPUT_BRAKEDOWN = 1 << 10;
+	constexpr uint16_t INPUT_BRAKELEFT = 1 << 11;
+	constexpr uint16_t INPUT_BRAKEUP = 1 << 12;
+}
+
+namespace RenderFlags
+{
+	constexpr uint8_t Enemy = 1 << 0;
+	constexpr uint8_t Item = 1 << 1;
+	constexpr uint8_t Player = 1 << 2;
 }
 
 namespace EntityFlags
 {
-	constexpr uint8_t STATE_ALIVE = 1 << 0;
-	constexpr uint8_t STATE_MOVING = 1 << 1;
-	constexpr uint8_t STATE_GRABBED = 1 << 2;
-	constexpr uint8_t STATE_HURT = 1 << 3;
-	// ALIVE - Rendering
-	// SLEEP - No physics
+	constexpr uint8_t Spawned = 1 << 0;
+	constexpr uint8_t Possessed = 1 << 1;
+	constexpr uint8_t PhysicsEnabled = 1 << 2;
+	constexpr uint8_t CollisionEnabled = 1 << 3;
+	constexpr uint8_t Visible = 1 << 4;
+	constexpr uint8_t Hit = 1 << 5;
+	constexpr uint8_t Grabbed = 1 << 6;
 }
 
 struct GameState
 {
-	uint8_t gameFlags = 0b1000;
-	uint8_t engineFlags = 0b1111111;
+	uint16_t engineFlags = 0b111111110;
 
 	uint16_t playerInput = 0;
 
-	int health = GameConfig::HEALTH_MAX;
-	int grabbedID = -1;
+	int playerID = -1;
+
+	int health = ConfigData::HEALTH_MAX;
+
 	float zoom = 1.f;
 
+	sf::Vector2f dir = { 0,0 };
 	sf::Vector2f aim = { 0,0 };
-
 	sf::Vector2f mousePos = { 0,0 };
 
 	sf::FloatRect viewBounds;
 	sf::FloatRect deadZone;
-	sf::FloatRect targetBounds;
-
-
-	// ======================
-
-	int entityCount = 0;
-
-	int availableIDs[GameConfig::ENTITY_MAX];
-
-
-
-
-
-	sf::Vector2f positions[GameConfig::ENTITY_MAX];
-	sf::Vector2f velocities[GameConfig::ENTITY_MAX];
-
-	float rotations[GameConfig::ENTITY_MAX];
-
-	uint8_t states[GameConfig::ENTITY_MAX];
-
-	int itemIDs[GameConfig::ITEM_MAX];
-	int enemyIDs[GameConfig::ENEMY_MAX];
-
-	int itemCount = 0;
-	int enemyCount = 0;
 } game;
-
-// $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-
-
-
-
-
-void printVec(const std::vector<int>& vec, const std::string& header)
-{
-	std::cout << "\n" << header << " : " << vec.size() << "\n";
-	for (int i = 0; i < vec.size(); i++)
-	{
-		std::cout << vec[i] << " ";
-	}
-	std::cout << "\n";
-}
-
-
-
-
-
-namespace PoolFlags
-{
-	constexpr uint8_t Spawned = 1 << 0;
-	constexpr uint8_t Possessed = 1 << 1;
- 	constexpr uint8_t Awake = 1 << 2;
- 	constexpr uint8_t Solid = 1 << 3;
-	constexpr uint8_t Visible = 1 << 4;
-	//constexpr uint8_t Visible = 1 << 5;
-	// 	constexpr uint8_t X = 1 << 6;
-	// 	constexpr uint8_t X = 1 << 7;
-}
 
 struct EntityPool
 {
-public:
 	int poolSize;
 
 	std::vector<int> availableIDs;
@@ -213,6 +143,8 @@ public:
 
 	std::vector<sf::Vector2f> position;
 	std::vector<sf::Vector2f> velocity;
+
+	std::vector<uint8_t> render;
 
 	EntityPool(int size) : poolSize(size)
 	{
@@ -224,14 +156,14 @@ public:
 		position.resize(size, {0,0});
 		velocity.resize(size, {0,0});
 
+		render.resize(size, 0);
+
 		for (int i = 0; i < poolSize; i++)
 		{
 			availableIDs.push_back(i);
 		}
 	}
-};
-
-EntityPool entities(5);
+} entities(100);
 
 int acquireEntity()
 {
@@ -255,139 +187,96 @@ void releaseEntity(int id)
 	}
 }
 
-void sspawnEnemy()
+void spawnEnemy()
 {
 	int id = acquireEntity();
 	if (id == -1) return;
-	
-	entities.flags[id] |= PoolFlags::Spawned;
-	entities.flags[id] |= PoolFlags::Possessed;
-	entities.flags[id] |= PoolFlags::Awake;
-	entities.flags[id] |= PoolFlags::Solid;
-	entities.flags[id] |= PoolFlags::Visible;
 
-	sf::Vector2f spawnPos = { static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
-									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT) };
+	entities.flags[id] |= EntityFlags::Spawned;
+	entities.flags[id] |= EntityFlags::Possessed;
+	entities.flags[id] |= EntityFlags::PhysicsEnabled;
+	entities.flags[id] |= EntityFlags::CollisionEnabled;
+	entities.flags[id] |= EntityFlags::Visible;
+
+	sf::Vector2f spawnPos = { static_cast<float>(rand() % ConfigData::WORLD_WIDTH),
+							  static_cast<float>(rand() % ConfigData::WORLD_HEIGHT) };
 
 	entities.position[id] = spawnPos;
 	entities.velocity[id] = { 0,0 };
+	entities.render[id] |= RenderFlags::Enemy;
 }
 
-void sspawnItem()
+void spawnItem()
 {
 	int id = acquireEntity();
 	if (id == -1) return;
 
-	entities.flags[id] |= PoolFlags::Spawned;
-	entities.flags[id] |= PoolFlags::Solid;
-	entities.flags[id] |= PoolFlags::Visible;
+	entities.flags[id] |= EntityFlags::Spawned;
+	entities.flags[id] |= EntityFlags::CollisionEnabled;
+	entities.flags[id] |= EntityFlags::Visible;
 
-	sf::Vector2f spawnPos = { static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
-									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT) };
+	sf::Vector2f spawnPos = { static_cast<float>(rand() % ConfigData::WORLD_WIDTH),
+							  static_cast<float>(rand() % ConfigData::WORLD_HEIGHT) };
 
 	entities.position[id] = spawnPos;
 	entities.velocity[id] = { 0,0 };
+	entities.render[id] |= RenderFlags::Item;
 }
 
-
-int playerID = -1;
-
-void sspawnPlayer()
+void spawnPlayer()
 {
 	int id = acquireEntity();
 	if (id == -1) return;
-	playerID = id;
+	game.playerID = id;
 
-	entities.flags[id] |= PoolFlags::Spawned;
-	entities.flags[id] |= PoolFlags::Awake;
-	entities.flags[id] |= PoolFlags::Solid;
-	entities.flags[id] |= PoolFlags::Visible;
+	entities.flags[id] |= EntityFlags::Spawned;
+	entities.flags[id] |= EntityFlags::PhysicsEnabled;
+	entities.flags[id] |= EntityFlags::CollisionEnabled;
+	entities.flags[id] |= EntityFlags::Visible;
 
 	entities.position[id] = { 0,0 };
 	entities.velocity[id] = { 0,0 };
+
+	entities.render[id] |= RenderFlags::Player;
 }
 
-void sdestroyEntity()
+void destroyEntity(int id)
 {
-	int id = entities.activeIDs.back();
-	//entities.flags[id] 0;
+	entities.flags[id] = 0;
+	entities.position[id] = { 0, 0 };
+	entities.velocity[id] = { 0, 0 };
+	entities.render[id] = 0;
+
 	releaseEntity(id);
 }
 
-
-
-
-
-
-/*
-sf::CircleShape entityShape(60, 50);
-
-namespace RenderFlags
+void initShape(sf::CircleShape& shape, uint8_t renderFlag)
 {
-	constexpr uint8_t Enemy = 1 << 0;
-	constexpr uint8_t Item = 1 << 1;
-	constexpr uint8_t Player = 1 << 2;
-	constexpr uint8_t Pause = 1 << 3;
-	//constexpr uint8_t Visible = 1 << 4;
-	//constexpr uint8_t X = 1 << 5;
-	//constexpr uint8_t X = 1 << 6;
-}
+	shape.setRadius(CollisionData::ENTITY_RADIUS);
+	shape.setOrigin({ CollisionData::ENTITY_RADIUS, CollisionData::ENTITY_RADIUS });
 
-void setShape(sf::CircleShape& shape, uint8_t renderFlag)
-{
-	//shape.setRadius(GameConfig::SHAPE_RADIUS);
-	//shape.setOrigin({ GameConfig::SHAPE_RADIUS, GameConfig::SHAPE_RADIUS });
-	//shape.setOutlineColor(GameConfig::SHAPE_COLOR);
-	//shape.setOutlineThickness(GameConfig::SHAPE_OUTLINE);
-
+	shape.setScale({ 1, 1 });
+	shape.setOutlineThickness(0);
+	shape.setOutlineColor(sf::Color::Transparent);
+	
 	if (renderFlag & RenderFlags::Enemy)
 	{
-		shape.setFillColor(sf::Color::Red);
 		shape.setPointCount(3);
+		shape.setFillColor(sf::Color::Red);
 	}
 
 	if (renderFlag & RenderFlags::Item)
 	{
-		shape.setFillColor(sf::Color::Green);
 		shape.setPointCount(4);
+		shape.setFillColor(sf::Color::Green);
 	}
 
 	if (renderFlag & RenderFlags::Player)
 	{
+		shape.setPointCount(30);
 		shape.setFillColor(sf::Color::Blue);
-		shape.setPointCount(3);
-
-	}
-
-	if (renderFlag & RenderFlags::Pause)
-	{
-		//shape.setScale()??
-		//shape.setRadius(100);
-		//shape.setRadius(GameConfig::PAUSE_RADIUS);
 	}
 }
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 bool screensave = false;
 int screenshotCount = 0;
@@ -401,77 +290,19 @@ sf::Font font;
 
 sf::Event event;
 
-std::string countString;
-sf::Text countText(countString, font, 24);
+sf::CircleShape shape(1, 1);
 
-sf::Text HUD("HUD", font, GameConfig::HUD_SIZE);
-sf::Text overText("GAME OVER", font, 50);
-sf::Text pauseText("The game is paused. Press [Esc] to continue.", font, 24);
-
-sf::Text triangleText("Enemy", font, 24);
-sf::Text squareText("Item", font, 24);
-sf::Text circleText("Player", font, 24);
+sf::Text text("", font);
+sf::Text HUD("HUD", font, ConfigData::HUD_SIZE);
 
 sf::Color hurtingColor = sf::Color::Blue;
 
-sf::CircleShape player(GameConfig::ENTITY_RADIUS, 3);
-sf::CircleShape item(GameConfig::ENTITY_RADIUS, 4);
-sf::CircleShape enemy(GameConfig::ENTITY_RADIUS, 3);
-sf::CircleShape bullet(GameConfig::ENTITY_RADIUS, 3);
-sf::CircleShape vfx(GameConfig::ENTITY_RADIUS, 3);
-
-sf::CircleShape triangle(100.f, 3);
-sf::CircleShape square(100.f, 4);
-sf::CircleShape triangle2(100.f, 3);
-
-sf::RenderWindow window(sf::VideoMode({ GameConfig::WINDOW_WIDTH, GameConfig::WINDOW_HEIGHT }), "demoncore");
-sf::View view({ 0.f,200.f }, { GameConfig::WINDOW_WIDTH, GameConfig::WINDOW_HEIGHT });
+sf::RenderWindow window(sf::VideoMode({ ConfigData::WINDOW_WIDTH, ConfigData::WINDOW_HEIGHT }), "demoncore");
+sf::View view({ 0.f,200.f }, { ConfigData::WINDOW_WIDTH, ConfigData::WINDOW_HEIGHT });
 const sf::View pauseView = window.getDefaultView();
 const sf::View hudView = window.getDefaultView();
 
-
-void initShapes()
-{
-	player.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
-	//player.setPosition(game.position);
-	player.setFillColor(sf::Color::Blue);
-	player.setOutlineColor(sf::Color::Transparent);
-	player.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
-
-	bullet.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
-	bullet.setFillColor(sf::Color::Red);
-	bullet.setOutlineColor(sf::Color::Transparent);
-	bullet.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
-
-	enemy.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
-	enemy.setFillColor(sf::Color::Red);
-	enemy.setOutlineColor(sf::Color::Transparent);
-	enemy.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
-
-	item.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
-	item.setFillColor(sf::Color::Green);
-	item.setOutlineColor(sf::Color::Transparent);
-	item.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
-
-	vfx.setOrigin({ GameConfig::ENTITY_RADIUS, GameConfig::ENTITY_RADIUS });
-	vfx.setFillColor(sf::Color::Transparent);
-	vfx.setOutlineColor(sf::Color::Transparent);
-	vfx.setOutlineThickness(GameConfig::ENTITY_OUTLINE);
-
-	triangle.setOrigin({ 100, 100 });
-	triangle.setFillColor(sf::Color::Red);
-	triangle.setPosition(GameConfig::WINDOW_WIDTH * 0.25, GameConfig::WINDOW_HEIGHT * 0.5);
-
-	square.setOrigin({ 100, 100 });
-	square.setFillColor(sf::Color::Green);
-	square.setPosition(GameConfig::WINDOW_WIDTH * 0.5, GameConfig::WINDOW_HEIGHT * 0.5);
-
-	triangle2.setOrigin({ 100, 100 });
-	triangle2.setFillColor(sf::Color::Blue);
-	triangle2.setPosition(GameConfig::WINDOW_WIDTH * 0.75, GameConfig::WINDOW_HEIGHT * 0.5);
-}
-
-void initTexts()
+void initHUD()
 {
 	if (!font.loadFromFile("font.ttf"))
 	{
@@ -481,35 +312,11 @@ void initTexts()
 
 	HUD.setOutlineColor(sf::Color::Black);
 	HUD.setOutlineThickness(2);
-	HUD.setLetterSpacing(5);
-
-	pauseText.setFillColor(sf::Color::Black);
-	pauseText.setPosition(GameConfig::WINDOW_WIDTH * 0.5, GameConfig::WINDOW_HEIGHT * 0.2);
-	pauseText.setOrigin(pauseText.getLocalBounds().width * 0.5, pauseText.getLocalBounds().height * 0.5);
-
-	triangleText.setFillColor(sf::Color::White);
-	triangleText.setPosition(GameConfig::WINDOW_WIDTH * 0.25, GameConfig::WINDOW_HEIGHT * 0.7);
-	triangleText.setOrigin(triangleText.getLocalBounds().width * 0.5, triangleText.getLocalBounds().height * 0.5);
-
-	squareText.setFillColor(sf::Color::White);
-	squareText.setPosition(GameConfig::WINDOW_WIDTH * 0.5, GameConfig::WINDOW_HEIGHT * 0.7);
-	squareText.setOrigin(squareText.getLocalBounds().width * 0.5, squareText.getLocalBounds().height * 0.5);
-
-	circleText.setFillColor(sf::Color::White);
-	circleText.setPosition(GameConfig::WINDOW_WIDTH * 0.75, GameConfig::WINDOW_HEIGHT * 0.7);
-	circleText.setOrigin(circleText.getLocalBounds().width * 0.5, circleText.getLocalBounds().height * 0.5);
-
-	overText.setLetterSpacing(5);
-	overText.setFillColor(sf::Color::Black);
-	overText.setOutlineThickness(0);
-	overText.setOutlineColor(sf::Color::Black);
-	overText.setPosition(GameConfig::WINDOW_WIDTH * 0.5, GameConfig::WINDOW_HEIGHT * 0.5);
-	overText.setOrigin(overText.getLocalBounds().width * 0.5, overText.getLocalBounds().height * 0.5);
-
-	countText.setFillColor(sf::Color::Red);
+	HUD.setLetterSpacing(5);	
 }
 
-void saveGame()
+// NEEDS REWRITING <3 NEEDS REWRITING <3 NEEDS REWRITING <3 NEEDS REWRITING <3 NEEDS REWRITING <3 NEEDS REWRITING <3
+void saveGame() 
 {
 	std::ofstream out("save.txt", std::ios::binary);
 	if (out)
@@ -527,17 +334,21 @@ void saveGame()
 	if (game.engineFlags & EngineFlags::ENGINE_DEBUG) std::cout << "Game saved!\n";
 }
 
-void loadGame()
+// NEEDS REWRITING <3 NEEDS REWRITING <3 NEEDS REWRITING <3 NEEDS REWRITING <3 NEEDS REWRITING <3 NEEDS REWRITING <3
+void loadGame() 
 {
 	std::ifstream in("save.txt", std::ios::binary);
 	
 	if (in)
 	{
-		if(game.engineFlags & EngineFlags::ENGINE_DEBUG) std::cout << "Loading latest save...\n";
+		if(game.engineFlags & EngineFlags::ENGINE_DEBUG)
+		std::cout << "Loading latest save...\n";
 	}
 	else
 	{
-		if (game.engineFlags & EngineFlags::ENGINE_DEBUG) std::cout << "Error loading game.\n";
+		if (game.engineFlags & EngineFlags::ENGINE_DEBUG)
+		std::cout << "Error loading game.\n";
+
 		return;
 	}
 
@@ -553,83 +364,62 @@ void takeScreenshot(sf::RenderWindow& window)
 	sf::Image screenshot = texture.copyToImage();
 
 	std::string filename = "screenshot" + std::to_string(screenshotCount) + ".png";
-	if (screenshot.saveToFile(filename) && game.engineFlags & EngineFlags::ENGINE_DEBUG) std::cout << "Screenshot saved to " << filename << "\n";
+
+	if (screenshot.saveToFile(filename) && game.engineFlags & EngineFlags::ENGINE_DEBUG)
+		std::cout << "Screenshot saved to " << filename << "\n";
 
 	screenshotCount++;
 	screensave = false;
 }
 
+void printVec(const std::vector<int>& vec, const std::string& header)
+{
+	std::cout << "\n" << header << " : " << vec.size() << "\n";
+	for (int i = 0; i < vec.size(); i++)
+	{
+		std::cout << vec[i] << " ";
+	}
+	std::cout << "\n";
+}
+
+sf::Vector2f normalize(sf::Vector2f vec)
+{
+	float distSq = vec.x * vec.x + vec.y * vec.y;
+	float dist = sqrt(distSq);
+	if (dist == 0.0f) dist = 0.000001f;
+	return vec / dist;
+}
+
 int main()
 {
-	sspawnPlayer();
+	spawnEnemy(); // NEEDS LOVE <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3
+	spawnItem(); // NEEDS LOVE <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3
+	spawnPlayer(); // NEEDS LOVE <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3
 
+	initHUD();
 
+	game.deadZone.width = ConfigData::DEADZONE_WIDTH;
+	game.deadZone.height = ConfigData::DEADZONE_HEIGHT;
 
-
-
-
-
-	sf::Vector2f mouseStart = game.mousePos;
-	
-	std::vector<int> values = { 100, 75, 42, 9001 };
-
-	// SPAWN ITEMS
-	for (int i = 0; i < GameConfig::ITEM_MAX; i++)
-	{
-		if (game.itemCount >= GameConfig::ITEM_MAX) break;
-
-		sf::Vector2f spawnPos = {	static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
-									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT)};
-
-		//spawnItem(spawnPos); <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3
-	}
-
-	// SPAWN ENEMIES
-	for (int i = 0; i < GameConfig::ENEMY_MAX; i++)
-	{
-		if (game.enemyCount < GameConfig::ENEMY_MAX)
-		{
-			sf::Vector2f spawnPos = { static_cast<float>(rand() % GameConfig::WORLD_WIDTH),
-									static_cast<float>(rand() % GameConfig::WORLD_HEIGHT) };
-
-			//spawnEnemy(spawnPos); <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
-		}
-	}
-
-	game.deadZone.width = GameConfig::DEADZONE_WIDTH;
-	game.deadZone.height = GameConfig::DEADZONE_HEIGHT;
-
-	initShapes();
-	initTexts();
-	
-	view.setCenter(player.getPosition());
-	window.setFramerateLimit(GameConfig::FPS_MAX);
+	view.setCenter(entities.position[game.playerID]);
+	window.setFramerateLimit(ConfigData::FPS_MAX);
 
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
 	// MAIN LOOP //
 	// [][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][][]
 	while (window.isOpen())
 	{
-		// SET UP FRAME //
-		if (entities.flags[playerID] & PoolFlags::Spawned)
+		// HANDLE FRAME WHEN SPAWNED
+		if (entities.flags[game.playerID] & EntityFlags::Spawned)
 		{
-			if (!(game.engineFlags & EngineFlags::ENGINE_INPUT)) game.engineFlags |= EngineFlags::ENGINE_INPUT;
-			if (!(game.engineFlags & EngineFlags::ENGINE_AI)) game.engineFlags |= EngineFlags::ENGINE_AI;
-			if (!(game.engineFlags & EngineFlags::ENGINE_COLLISION)) game.engineFlags |= EngineFlags::ENGINE_COLLISION;
-
-
 			window.clear();
 			deltaTime = deltaClock.restart().asSeconds();
 
 			game.mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
 			// Calculate aim
-			sf::Vector2f deltaAim = game.mousePos - player.getPosition();
-			float distSqAim = deltaAim.x * deltaAim.x + deltaAim.y * deltaAim.y;
-			float distAim = std::sqrt(distSqAim);
-			if (distAim == 0.0f) distAim = 0.0001f;
-			sf::Vector2f normalAim = deltaAim / distAim;
-			game.aim = normalAim;
+			sf::Vector2f deltaAim = game.mousePos - entities.position[game.playerID];
+			game.aim = normalize(deltaAim);
 
 			// Get view bounds
 			sf::View currentView = window.getView();
@@ -638,86 +428,35 @@ int main()
 			game.viewBounds.width = currentView.getSize().x;
 			game.viewBounds.height = currentView.getSize().y;
 		}
-		else if (!(entities.flags[playerID] & PoolFlags::Spawned))
-		{
-			game.engineFlags &= ~EngineFlags::ENGINE_INPUT;
-			game.engineFlags &= ~EngineFlags::ENGINE_AI;
-			game.engineFlags &= ~EngineFlags::ENGINE_COLLISION;
-		}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		for (int i = 0; i < entities.activeIDs.size(); i++)
-		{
-			int id = entities.activeIDs[i];
-			if (id == playerID) continue;
-
-			sf::CircleShape shape(40, 40);
-			shape.setPosition(entities.position[id]);
-			shape.setFillColor(sf::Color::White);
-			shape.setOrigin(30, 40);
-			window.draw(shape);
-		}
-
-
-
-
-
-
-
-		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 		// PLAYER INPUT & EVENTS //
-		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 		// INPUTS
 		while (window.pollEvent(event))
 		{
 			if (event.type == sf::Event::Closed) window.close();
+			
+			if (event.type == sf::Event::KeyPressed)
+			if (event.key.code == sf::Keyboard::Escape) game.engineFlags ^= EngineFlags::ENGINE_PAUSE;
 
-			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::Escape) game.gameFlags ^= GameFlags::GAME_PAUSE;
-
-			if (event.type == sf::Event::KeyPressed) if (event.key.code == sf::Keyboard::End) entities.flags[playerID] ^= PoolFlags::Spawned;
-
-
-			if (game.gameFlags & GameFlags::GAME_PAUSE)
-			{
-				if (event.type == sf::Event::MouseButtonPressed) if (event.mouseButton.button == sf::Mouse::Right) game.gameFlags ^= GameFlags::GAME_STATS;
-			}
-			else game.gameFlags &= ~GameFlags::GAME_STATS;
+			if (event.type == sf::Event::KeyPressed)
+			if (event.key.code == sf::Keyboard::End) entities.flags[game.playerID] ^= EntityFlags::Spawned;
 
 			if (game.engineFlags & EngineFlags::ENGINE_DEBUG)
 			{
 				if (event.type == sf::Event::KeyPressed)
 				{
 					if (event.key.code == sf::Keyboard::P) screensave = true;
-					if (event.key.code == sf::Keyboard::Tab) saveGame();
-					if (event.key.code == sf::Keyboard::BackSpace) loadGame();
+					if (event.key.code == sf::Keyboard::Tab) saveGame(); // SAVE ME (ironic haha) <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3
+					if (event.key.code == sf::Keyboard::BackSpace) loadGame(); // SAVE ME (ironic haha) <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3
 
-					if (event.key.code == sf::Keyboard::Add) sspawnEnemy();
-					if (event.key.code == sf::Keyboard::Subtract) sdestroyEntity();
+					if (event.key.code == sf::Keyboard::Add) spawnEnemy();
+					if (event.key.code == sf::Keyboard::Subtract) //destroyEntity();
 					if (event.key.code == sf::Keyboard::Enter) ;
 
 				}
 			}
-
-			if (!(entities.flags[playerID] & PoolFlags::Spawned)) break;
 
 			if (event.type == sf::Event::KeyPressed)
 			{
@@ -766,91 +505,66 @@ int main()
 			}	
 		}
 
+		// HANDLE INPUT //
 		if (game.engineFlags & EngineFlags::ENGINE_INPUT)
 		{
-			// HANDLE PLAYER SHOOT INPUT
-			if (game.playerInput & InputFlags::INPUT_SHOOT)
-			{
-				
-			}
-
-			// HANDLE GRAB INPUT
-			if (game.playerInput & InputFlags::INPUT_GRAB)
-			{
-				if (game.grabbedID == -1)
-				{
-
-					for (int i = 0; i < game.itemCount; i++)
-					{
-						int id = game.itemIDs[i];
-
-						if (game.states[id] & EntityFlags::STATE_ALIVE)
-						{
-							sf::Vector2f delta = game.mousePos - game.positions[id];
-							float distSq = delta.x * delta.x + delta.y * delta.y;
-
-							if (distSq < GRAB_DISTANCE)
-							{
-								game.grabbedID = id;
-								game.states[id] |= EntityFlags::STATE_GRABBED;
-								break;
-							}
-						}
-					}
-
-				}
-			}
-
-			// HANDLE SHOOT & GRAB INPUT
-			if (game.playerInput & 0b110000)
-			{
-				//game.health -= GameConfig::HEALTH_COST * deltaTime;
-				//regenTimer.restart();
-			}
-
-
-			sf::View currentView = window.getView();
-			game.viewBounds.left = currentView.getCenter().x - currentView.getSize().x / 2.f;
-			game.viewBounds.top = currentView.getCenter().y - currentView.getSize().y / 2.f;
-			game.viewBounds.width = currentView.getSize().x;
-			game.viewBounds.height = currentView.getSize().y;
-
-
-			if (game.playerInput & InputFlags::INPUT_DROP)
-			{
-				game.velocities[game.grabbedID] *= GameConfig::DROP_FORCE;
-				game.states[game.grabbedID] &= ~EntityFlags::STATE_GRABBED;
-				game.grabbedID = -1;
-				game.playerInput &= ~InputFlags::INPUT_DROP;
-			}
-
-			// HANDLE PLAYER MOVEMENT INPUT
+			// Hanlde movement
 			if (game.playerInput & 0b1111)
 			{
-				//game.playerState |= EntityFlags::STATE_MOVING;
-				//if (game.playerInput & 0b1) game.velocity += { 1 * GamePhysics::PLAYER_TURNING, 0 };
-				//if (game.playerInput & 0b10) game.velocity += { 0, 1 * GamePhysics::PLAYER_TURNING };
-				//if (game.playerInput & 0b100) game.velocity -= { 1 * GamePhysics::PLAYER_TURNING, 0 };
-				//if (game.playerInput & 0b1000) game.velocity -= { 0, 1 * GamePhysics::PLAYER_TURNING };
-				
-				if (game.playerInput & InputFlags::INPUT_MOVERIGHT) entities.velocity[playerID] += { 1 * GamePhysics::PLAYER_TURNING, 0 };
-				if (game.playerInput & InputFlags::INPUT_MOVEDOWN) entities.velocity[playerID] += { 0, 1 * GamePhysics::PLAYER_TURNING };
-				if (game.playerInput & InputFlags::INPUT_MOVELEFT) entities.velocity[playerID] -= { 1 * GamePhysics::PLAYER_TURNING, 0 };
-				if (game.playerInput & InputFlags::INPUT_MOVEUP) entities.velocity[playerID] -= { 0, 1 * GamePhysics::PLAYER_TURNING };
+				sf::Vector2f dir = { 0,0 };
 
+				if (game.playerInput & InputFlags::INPUT_MOVERIGHT) dir.x += 1.f;
+				if (game.playerInput & InputFlags::INPUT_MOVELEFT)  dir.x -= 1.f;
+				if (game.playerInput & InputFlags::INPUT_MOVEDOWN)  dir.y += 1.f;
+				if (game.playerInput & InputFlags::INPUT_MOVEUP)    dir.y -= 1.f;
+
+				game.dir += (normalize(dir) - game.dir) * deltaTime * PhysicsData::TURN_SPEED;
+				game.dir = normalize(game.dir);
 			}
 			else
 			{
-				//game.playerState &= ~EntityFlags::STATE_MOVING;
-				//game.velocity *= GamePhysics::PLAYER_FRICTION;
-				//if (std::abs(game.velocity.x) < 0.01f) game.velocity.x = 0.f;
-				//if (std::abs(game.velocity.y) < 0.01f) game.velocity.y = 0.f;
-
-				if (std::abs(entities.velocity[playerID].x) < 0.01f) entities.velocity[playerID].x = 0.f;
-				if (std::abs(entities.velocity[playerID].y) < 0.01f) entities.velocity[playerID].y = 0.f;
+				game.dir = { 0,0 };
 			}
 
-			// HANDLE ZOOM
+			// Handle shoot & grab
+			for (int i = 0; i < entities.activeIDs.size(); i++)
+			{
+				int id = entities.activeIDs[i];
+
+				if (game.playerInput & 0b110000)
+				{
+					sf::Vector2f delta = game.mousePos - entities.position[id];
+					float distSq = delta.x * delta.x + delta.y * delta.y;
+
+					if (game.playerInput & InputFlags::INPUT_SHOOT)
+					{
+						if (distSq < CollisionData::ENTITY_TARGET)
+						{
+							if(id != game.playerID) destroyEntity(id);
+						}
+					}
+					
+					if (game.playerInput & InputFlags::INPUT_GRAB)
+					{
+						if (distSq < CollisionData::ENTITY_GRAB)
+						{
+							entities.flags[id] |= EntityFlags::Grabbed;
+						}
+					}
+				}
+			}
+
+			// Handle shoot | grab
+			if (game.playerInput & 0b110000)
+			{
+				game.health -= ConfigData::HEALTH_COST * deltaTime;
+				regenTimer.restart();
+			}
+
+			if (game.playerInput & InputFlags::INPUT_DROP);
+
+			
+			// Handle zoom
 			if (game.playerInput & InputFlags::INPUT_ZOOMIN)
 			{
 				view.zoom(0.9f);
@@ -863,17 +577,36 @@ int main()
 			}
 			view.zoom(game.zoom);
 		}
-		
+
+		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		// HANDLE PAUSE //
+		// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		if (game.engineFlags & EngineFlags::ENGINE_PAUSE)
+		{
+			game.engineFlags &= ~EngineFlags::ENGINE_AI;
+			game.engineFlags &= ~EngineFlags::ENGINE_PHYSICS;
+			game.engineFlags &= ~EngineFlags::ENGINE_COLLISION;
+		}
+		else if (!(game.engineFlags & EngineFlags::ENGINE_PAUSE))
+		{
+			if (!(game.engineFlags & EngineFlags::ENGINE_AI)) game.engineFlags |= EngineFlags::ENGINE_AI;
+			if (!(game.engineFlags & EngineFlags::ENGINE_PHYSICS)) game.engineFlags |= EngineFlags::ENGINE_PHYSICS;
+			if (!(game.engineFlags & EngineFlags::ENGINE_COLLISION)) game.engineFlags |= EngineFlags::ENGINE_COLLISION;
+		}
+
 		// <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		// AI //
 		// <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		if (game.engineFlags & EngineFlags::ENGINE_AI)
 		{
-			for (int i = 0; i < game.enemyCount; i++)
+			// FLOCKING BEHAVIOR
+			for (int i = 0; i < entities.activeIDs.size(); i++)
 			{
-				int id = game.enemyIDs[i];
+				int id = entities.activeIDs[i];
 
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
+				if (!(entities.flags[id] & EntityFlags::Possessed)) continue;
+
+				sf::Vector2f vel = entities.velocity[id];
 
 				int neighborCount = 0;
 
@@ -881,23 +614,26 @@ int main()
 				sf::Vector2f alignment(0.f, 0.f);
 				sf::Vector2f cohesion(0.f, 0.f);
 
-				sf::Vector2f vel = game.velocities[id];
-
-				for (int j = 0; j < game.enemyCount; j++)
+				for (int j = i + 1; j < entities.activeIDs.size(); j++)
 				{
-					int jd = game.enemyIDs[j];
+					int jd = entities.activeIDs[j];
 
-					if (!(game.states[jd] & EntityFlags::STATE_ALIVE)) continue;
-
-					sf::Vector2f delta = game.positions[jd] - game.positions[id];
+					if (!(entities.flags[jd] & EntityFlags::Possessed)) continue;
+					
+					sf::Vector2f delta = entities.position[jd] - entities.position[id];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
 
-					if (distSq < FlockAI::FLOCK_RADIUS * FlockAI::FLOCK_RADIUS)
+					if (distSq < FlockData::FLOCK_RADIUS * FlockData::FLOCK_RADIUS)
 					{
+						sf::Vertex moveLine[] = { sf::Vertex(entities.position[jd], sf::Color::Red)
+												, sf::Vertex(entities.position[id], sf::Color::Black) };
+
+						window.draw(moveLine, 2, sf::Lines);
+
 						float dist = std::sqrt(distSq);
 						separation -= delta / (dist + 1.f);
-						alignment += game.velocities[jd];
-						cohesion += game.positions[jd];
+						alignment += entities.velocity[jd];
+						cohesion += entities.position[jd];
 						neighborCount++;
 					}
 				}
@@ -906,562 +642,399 @@ int main()
 				{
 					alignment /= static_cast<float>(neighborCount);
 					cohesion /= static_cast<float>(neighborCount);
-					cohesion -= game.positions[id];
+					cohesion -= entities.position[id];
 
-					sf::Vector2f steer = separation * FlockAI::FLOCK_SEPARATION + alignment * FlockAI::FLOCK_ALIGNMENT + cohesion * FlockAI::FLOCK_COHESION;
+					sf::Vector2f steer = separation * FlockData::FLOCK_SEPARATION
+										+ alignment * FlockData::FLOCK_ALIGNMENT
+										+ cohesion * FlockData::FLOCK_COHESION;
+
 					vel += steer * deltaTime;
 
 					float speed = std::sqrt(vel.x * vel.x + vel.y * vel.y);
-					if (speed > FlockAI::FLOCK_SPEED) vel = (vel / speed) * FlockAI::FLOCK_SPEED;
-					game.velocities[id] = vel;
+					if (speed > FlockData::FLOCK_SPEED) vel = (vel / speed) * FlockData::FLOCK_SPEED;
+					entities.velocity[id] = vel;
 				}
 			}
 		}
-		
-		/*
-		// ENEMY COLLISION & FLOCKING
-		for (size_t i = 0; i < ENEMY_MAX; i++)
-		{
-			if (!(enemies.state[i] & STATE_ALIVE)) continue;
-
-			// ENEMY FLOCK & HORDE BEHAVIOR $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-			sf::Vector2f pos = enemies.position[i];
-			sf::Vector2f vel = enemies.velocity[i];
-
-			sf::Vector2f separation(0.f, 0.f);
-			sf::Vector2f alignment(0.f, 0.f);
-			sf::Vector2f cohesion(0.f, 0.f);
-			int neighborCount = 0;
-
-			for (size_t j = 0; j < ENEMY_MAX; j++)
-			{
-				if (i == j || !(enemies.state[j] & STATE_ALIVE)) continue;
-
-				sf::Vector2f otherPos = enemies.position[j];
-				sf::Vector2f offset = otherPos - pos;
-				float distSq = offset.x * offset.x + offset.y * offset.y;
-
-				if (distSq < FLOCK_RADIUS * FLOCK_RADIUS)
-				{
-					float dist = std::sqrt(distSq);
-					separation -= offset / (dist + 1.f);
-					alignment += enemies.velocity[j];
-					cohesion += otherPos;
-					neighborCount++;
-				}
-			}
-
-			if (neighborCount > 0)
-			{
-				alignment /= static_cast<float>(neighborCount);
-				cohesion /= static_cast<float>(neighborCount);
-				cohesion -= pos;
-
-				sf::Vector2f steer = separation * FLOCK_SEPARATION + alignment * FLOCK_ALIGNMENT + cohesion * FLOCK_COHESION;
-				vel += steer * deltaTime;
-
-				float speed = std::sqrt(vel.x * vel.x + vel.y * vel.y);
-				if (speed > FLOCK_SPEED) vel = (vel / speed) * FLOCK_SPEED;
-				enemies.velocity[i] = vel;
-			}
-		}
-		*/
 
 		// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		// UPDATE PHYSICS //
+		// PHYSICS //
 		// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		if (game.engineFlags & EngineFlags::ENGINE_PHYSICS)
 		{
-			// ITEM PHYSICS
-			for (int i = 0; i < game.itemCount; i++)
+			// Player physics
+			if (entities.flags[game.playerID] & EntityFlags::Spawned)
 			{
-				int id = game.itemIDs[i];
+				entities.velocity[game.playerID] += game.dir * PhysicsData::ACCELERATION;
 
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
+				entities.velocity[game.playerID].x = std::max(-PhysicsData::MAX_SPEED, 
+													 std::min(entities.velocity[game.playerID].x, 
+													 PhysicsData::MAX_SPEED));
 
-				if (game.states[id] & EntityFlags::STATE_GRABBED)
-				{
-					sf::Vector2f delta = game.mousePos - game.positions[id];
-					game.velocities[id] = delta * GamePhysics::GRAB_SPRING;
-				}
-
-				game.velocities[id] *= GamePhysics::ITEM_FRICTION;
+				entities.velocity[game.playerID].y = std::max(-PhysicsData::MAX_SPEED,
+													 std::min(entities.velocity[game.playerID].y,
+													 PhysicsData::MAX_SPEED));
 			}
 
-			// ENEMY PHYSICS
-			for (int i = 0; i < game.enemyCount; i++)
+			// Entity physics
+			for (int i = 0; i < entities.activeIDs.size(); i++)
 			{
-				int id = game.enemyIDs[i];
+				int id = entities.activeIDs[i];
+				
+				if (!(entities.flags[id] & EntityFlags::PhysicsEnabled)) continue;
 
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
+				entities.velocity[id] *= PhysicsData::FRICTION;
 
-				game.velocities[id] *= GamePhysics::ENEMY_FRICTION;
-			}
-
-			// PLAYER PHYSICS
-			if (entities.flags[playerID] & PoolFlags::Spawned) //&& game.playerState & EntityFlags::STATE_MOVING)
-			{
-				// Test performance - research alternatives.
-				float distSqVel = entities.velocity[playerID].x * entities.velocity[playerID].x + entities.velocity[playerID].y * entities.velocity[playerID].y;
-				float distVel = std::sqrt(distSqVel);
-				if (distVel == 0.0f) distVel = 0.001f;
-				entities.velocity[playerID] = (entities.velocity[playerID] / distVel) * GamePhysics::PLAYER_SPEED;
-
-				entities.velocity[playerID] *= GamePhysics::PLAYER_FRICTION;
-				entities.position[playerID] += entities.velocity[playerID] * deltaTime;
-			}
-
-			// ALL ENTITIES
-			for (int i = 0; i < game.entityCount; i++)
-			{
-				if (!(game.states[i] & EntityFlags::STATE_ALIVE)) continue;
-					
-				game.positions[i] += game.velocities[i] * deltaTime;
+				entities.position[id] += entities.velocity[id] * deltaTime;
 			}
 		}
 
 		// ############################################################################################################################
-		// COLLISIONS AND INTERACTIONS //
+		// COLLISION //
 		// ############################################################################################################################
 		if (game.engineFlags & EngineFlags::ENGINE_COLLISION)
 		{
-			/*
-			// ITEM COLLISION
-			for (size_t i = 0; i < ITEM_MAX; i++)
+			for (int i = 0; i < entities.activeIDs.size(); i++)
 			{
-				if (!(items.state[i] & STATE_ALIVE)) continue;
+				int id = entities.activeIDs[i];
 
-				// ITEM-ENEMY COLLISION
-				for (size_t j = 0; j < ENEMY_MAX; j++)
+				if (!(entities.flags[id] & EntityFlags::CollisionEnabled)) continue;
+				
+				for (int j = i + 1; j < entities.activeIDs.size(); j++)
 				{
-					if (!(enemies.state[j] & STATE_ALIVE)) continue;
+					int jd = entities.activeIDs[j];
 
-					sf::Vector2f dirCol = items.position[i] - enemies.position[j];
-					float distSqBCol = dirCol.x * dirCol.x + dirCol.y * dirCol.y;
+					if (!(entities.flags[jd] & EntityFlags::CollisionEnabled)) continue;
 
-					if (distSqBCol < ITEM_COLLISION)
-					{
-						if(!(items.state[i] & STATE_GRABBED)) enemies.state[j] &= ~0b1;
-
-						float distCol = std::sqrt(distSqBCol);
-						if (distCol == 0.0f) distCol = 0.001f;
-						sf::Vector2f normalCol = dirCol / distCol;
-
-						enemies.position[i] -= normalCol * (30 - distCol);
-						//items.state[i] &= ~0b1;
-					}
-				}
-			}
-			*/
-
-			// ITEM-ENEMY COLLISION
-			for (int i = 0; i < game.itemCount; i++)
-			{
-				int id = game.itemIDs[i];
-
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
-
-				for (int j = 0; j < game.enemyCount; j++)
-				{
-					int jd = game.itemIDs[j];
-
-					if (!(game.states[jd] & EntityFlags::STATE_ALIVE)) continue;
-
-					sf::Vector2f delta = game.positions[id] - game.positions[jd];
+					sf::Vector2f delta = entities.position[id] - entities.position[jd];
 					float distSq = delta.x * delta.x + delta.y * delta.y;
-
-					if (distSq < GameCollision::COLLISION_ITEM_ENEMY)
+					
+					if (distSq < CollisionData::ENTITY_COLLISION)
 					{
-						game.velocities[jd] += game.velocities[id] * GameCollision::BULLET_FORCE * deltaTime;
+						sf::Vector2f push = normalize(delta) * 0.5f;
+						entities.position[id] += push;
+						entities.position[jd] -= push;
 
-						if (entities.flags[playerID] & PoolFlags::Spawned)
+						// Enemy-player collision
+						if ((id == game.playerID && entities.flags[jd] & EntityFlags::Possessed)
+						|| (jd == game.playerID && entities.flags[id] & EntityFlags::Possessed))
 						{
-							//enemies.state[j] &= ~0b1;
-							//enemyCount--;
+							game.health--;
+							regenTimer.restart();
 						}
-
-						//states[id] &= ~STATE_ALIVE;
-						break;
 					}
-				}
-			}
-			
-			// ENEMY-PLAYER COLLISION
-			for (int i = 0; i < game.enemyCount; i++)
-			{
-				int id = game.enemyIDs[i];
-
-				if (id < 0 || id >= GameConfig::ENEMY_MAX) continue;
-				if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
-
-				sf::Vector2f delta = entities.position[playerID] - game.positions[id];
-				float distSq = delta.x * delta.x + delta.y * delta.y;
-
-				if (distSq < GameCollision::PLAYER_COLLISION)
-				{
-					game.health--;
-					regenTimer.restart();
 				}
 			}
 		}
 
 		// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		// UPDATE STATES //
+		// UPDATE STATES (?) //
 		// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-		// UPDATE HEALTH
-		if (game.health <= 0) entities.flags[playerID] &= ~PoolFlags::Spawned;
+		// Update health
+		if (game.health <= 0) entities.flags[game.playerID] &= ~EntityFlags::Spawned;
 
-		if (game.health < GameConfig::HEALTH_MAX && regenTimer.getElapsedTime().asSeconds() > GameConfig::REGEN_TIME) game.health += GameConfig::REGEN_SPEED * deltaTime;
+		if (game.health < ConfigData::HEALTH_MAX && regenTimer.getElapsedTime().asSeconds() > ConfigData::REGEN_TIME) 
+			game.health += ConfigData::REGEN_SPEED * deltaTime;
+
+		// Update and move window
+		game.deadZone.left = view.getCenter().x - game.deadZone.width / 2.f;
+		game.deadZone.top = view.getCenter().y - game.deadZone.height / 2.f;
+
+		if (entities.position[game.playerID].x < game.deadZone.left)
+			view.move(entities.position[game.playerID].x - game.deadZone.left, 0.f);
+
+		else if (entities.position[game.playerID].x > game.deadZone.left + game.deadZone.width)
+			view.move(entities.position[game.playerID].x - (game.deadZone.left + game.deadZone.width), 0.f);
+
+		if (entities.position[game.playerID].y < game.deadZone.top)
+			view.move(0.f, entities.position[game.playerID].y - game.deadZone.top);
+
+		else if (entities.position[game.playerID].y > game.deadZone.top + game.deadZone.height)
+			view.move(0.f, entities.position[game.playerID].y - (game.deadZone.top + game.deadZone.height));
+
+		// Clamp view size
+		if (view.getSize().x < 1 || view.getSize().y < 1) view.setSize({ 1,1 });
 
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// RENDERING //
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// VFX
-		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && game.engineFlags & EngineFlags::ENGINE_VFX)
-		{
-			// PLAYER VFX
-			if (game.health < GameConfig::HEALTH_MAX && entities.flags[playerID] & PoolFlags::Spawned)
-			{
-				float hurt = (1.0f - static_cast<float>(game.health) / GameConfig::HEALTH_MAX);
-				
-				if (game.playerInput & 0b110000)
-				{
-					if (game.playerInput & InputFlags::INPUT_SHOOT)
-					{
-						float hurting = hurt * 0.8;
-						hurtingColor = sf::Color(255 * hurting, 0, 255 * (1 - hurting));
-					}
-
-					if (game.playerInput & InputFlags::INPUT_GRAB)
-					{
-						float hurting = hurt * 0.8;
-						hurtingColor = sf::Color(0, 255 * hurting, 255);
-					}
-
-					sf::FloatRect& bounds = game.targetBounds;
-
-					sf::ConvexShape convex(4);
-					convex.setPoint(0, sf::Vector2f(bounds.left, bounds.top));
-					convex.setPoint(1, sf::Vector2f(bounds.left + bounds.width, bounds.top));
-					convex.setPoint(2, sf::Vector2f(bounds.left + bounds.width, bounds.top + bounds.height));
-					convex.setPoint(3, sf::Vector2f(bounds.left, bounds.top + bounds.height));
-
-					convex.setFillColor(sf::Color(0, 0, 0, 0));
-					convex.setOutlineColor(hurtingColor); // or hurtingColor
-					convex.setOutlineThickness(2.0f);
-					window.setView(view);
-
-					window.draw(convex);
-				}
-				else
-				{
-					hurtingColor = sf::Color(0, 0, 255);
-				}
-				
-				//sf::Vertex line[] = { sf::Vertex(game.position, hurtingColor), sf::Vertex(game.mousePos, sf::Color::Black)};
-				//window.draw(line, 2, sf::Lines);
-
-				player.setOutlineThickness(hurt);
-				player.setOutlineColor(hurtingColor);
-				player.setFillColor(hurtingColor);
-
-				std::cout << hurt << std::endl;
-			}
-
-			// ENEMY FLOCK DEBUG VFX
-			if (game.engineFlags & EngineFlags::ENGINE_DEBUG && entities.flags[playerID] & PoolFlags::Spawned)
-			{
-				for (int i = 0; i < game.enemyCount; i++)
-				{
-					int id = game.enemyIDs[i];
-
-					if (!(game.states[id] & EntityFlags::STATE_ALIVE)) continue;
-
-					for (int j = 0; j < game.enemyCount; j++)
-					{
-						int jd = game.enemyIDs[j];
-
-						if (!(game.states[jd] & EntityFlags::STATE_ALIVE)) continue;
-
-						sf::Vector2f delta = game.positions[jd] - game.positions[id];
-						float distSq = delta.x * delta.x + delta.y * delta.y;
-
-						if (distSq < GameVFX::FLOCK_LINE * GameVFX::FLOCK_LINE)
-						{
-							sf::Vector2f midPoint = (game.positions[id] + game.positions[jd]) * 0.5f;
-
-							sf::Vertex flockLine[] = {
-								sf::Vertex(game.positions[id], sf::Color::Red),
-								sf::Vertex(midPoint, sf::Color::Black),
-								sf::Vertex(game.positions[jd], sf::Color::Red)
-							};
-
-							window.draw(flockLine, 3, sf::LineStrip);
-
-							if (distSq < GameVFX::FLOCK_HUDDLE * GameVFX::FLOCK_HUDDLE)
-							{
-								sf::Vector2f midPoint = (game.positions[id] + game.positions[jd]) * 0.5f;
-
-								sf::Vertex flockLine[] = { sf::Vertex(game.positions[id], sf::Color::Red), sf::Vertex(game.positions[jd], sf::Color::Red) };
-
-								window.draw(flockLine, 2, sf::LineStrip);
-							}
-						}
-
-						//
-						//sf::Vertex moveLine[] = { sf::Vertex(positions[id], sf::Color::Red), sf::Vertex(positions[jd], sf::Color::Black)};
-						//window.draw(moveLine, 2, sf::Lines);
-					}
-				}
-			}
-			
-
-		}
-		
-		// RENDER
 		if (game.engineFlags & EngineFlags::ENGINE_RENDERING)
 		{
-			// RENDER ITEMS
-			for (int i = 0; i < game.itemCount; i++)
-			{
-				int id = game.itemIDs[i];
-
-				if (game.states[id] & EntityFlags::STATE_ALIVE)
-				{
-					item.setPosition(game.positions[id]);
-					window.draw(item);
-				}
-			}
-
-			// RENDER ENEMIES
-			for (int i = 0; i < game.enemyCount; i++)
-			{
-				int id = game.enemyIDs[i];
-
-				if (game.states[id] & EntityFlags::STATE_ALIVE)
-				{
-					enemy.setPosition(game.positions[id]);
-					window.draw(enemy);
-				}
-			}
-
-			// RENDER PLAYER
-			if (entities.flags[playerID] & PoolFlags::Spawned)
-			{
-				float angle = std::atan2(game.aim.y, game.aim.x) * 180.f / 3.14159265f;
-				player.setRotation(angle + 90);
-			}
-			player.setPosition(entities.position[playerID]);
-			window.draw(player);
-
-			// MOVE VIEW WINDOW
-			game.deadZone.left = view.getCenter().x - game.deadZone.width / 2.f;
-			game.deadZone.top = view.getCenter().y - game.deadZone.height / 2.f;
-
-			//if (game.position.x < game.deadZone.left) view.move(game.position.x - game.deadZone.left, 0.f);
-			//else if (game.position.x > game.deadZone.left + game.deadZone.width) view.move(game.position.x - (game.deadZone.left + game.deadZone.width), 0.f);
-
-			//if (game.position.y < game.deadZone.top) view.move(0.f, game.position.y - game.deadZone.top);
-			//else if (game.position.y > game.deadZone.top + game.deadZone.height) view.move(0.f, game.position.y - (game.deadZone.top + game.deadZone.height));
-
-			// CLAMP VIEW SIZE
-			if (view.getSize().x < 1 || view.getSize().y < 1) view.setSize({ 1,1 });
-			//if (view.getSize().x > WORLD_WIDTH || view.getSize().y > WORLD_HEIGHT) view.setSize({ WORLD_WIDTH,WORLD_HEIGHT });
-		}
-		
-		// HUD
-		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && game.gameFlags & GameFlags::GAME_HUD)
-		{
-			window.setView(pauseView);
-
-			HUD.setString("HP " + std::to_string(game.health * 100 / GameConfig::HEALTH_MAX));
-			if (!(entities.flags[playerID] & PoolFlags::Spawned)) HUD.setString("HP 0");
-
-			HUD.setFillColor(sf::Color::Red);
-			if (game.health > GameConfig::HEALTH_MAX * 0.20) HUD.setFillColor(sf::Color::Yellow);
-			if (game.health > GameConfig::HEALTH_MAX * 0.70) HUD.setFillColor(sf::Color::Green);
-			if (!(entities.flags[playerID] & PoolFlags::Spawned)) HUD.setFillColor(sf::Color::Red);
-
-			//HUD.setPosition(player.getPosition()); // Must be on same view.
-
-			window.draw(HUD);
-		}
-
-		// PAUSE SCREEN
-		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && game.gameFlags & GameFlags::GAME_PAUSE)
-		{
-			window.clear();
-			window.setView(pauseView);
-
-			//if (enemyCount > 1 && enemyCount < ENEMY_MAX) countString = std::to_string(enemyCount) + " enemies left";
-			//else if(enemyCount == 1 && enemyCount != ENEMY_MAX) countString = "only 1 enemy left";!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-			//countText.setPosition(WINDOW_WIDTH * 0.5, WINDOW_HEIGHT * 0.3);
-			//countText.setOrigin(countText.getLocalBounds().width * 0.5, countText.getLocalBounds().height * 0.5);
-
-			pauseText.setFillColor(sf::Color::White);
-
-			//overText.setFillColor(sf::Color::Red);
-			//overText.setOutlineThickness(2);
-
-			window.draw(triangle);
-			window.draw(square);
-			window.draw(triangle2);
-			window.draw(pauseText);
-			window.draw(triangleText);
-			window.draw(squareText);
-			window.draw(circleText);
-			window.draw(countText);
-		}
-
-		// GAME OVER SCREEN
-		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && (entities.flags[playerID] & PoolFlags::Spawned) == 0 && (game.gameFlags & GameFlags::GAME_PAUSE) == 0)
-		{
-			window.setView(hudView);
-			window.draw(overText);
-
-			// GAME OVER VFX
+			// VFX - UNDER ENTITIES
 			if (game.engineFlags & EngineFlags::ENGINE_VFX)
 			{
-				/*
-				for (int i = 0; i < game.bulletCount; i++)
+				if (game.playerInput & InputFlags::INPUT_GRAB)
 				{
-					int id = game.bulletIDs[i];
+					sf::CircleShape circle(25, 8);
+					circle.setOutlineColor(sf::Color(0, 255, 255));
+					circle.setFillColor(sf::Color::Transparent);
+					circle.setPosition(game.mousePos);
+					circle.setOrigin(25, 25);
+					circle.setOutlineThickness(1);
+					window.draw(circle);
+				}
+			}
 
-					// SPAWN DEATH BULLETS
-					if (!(game.states[id] & EntityFlags::STATE_ALIVE))
+			// RENDER ENTITIES
+			for (int i = 0; i < entities.activeIDs.size(); i++)
+			{
+				int id = entities.activeIDs[i];
+
+				if (!(entities.flags[id] & EntityFlags::Visible)) continue;
+
+				initShape(shape, entities.render[id]);
+				shape.setPosition(entities.position[id]);
+				window.draw(shape);
+			}
+
+			// VFX - OVER ENTITIES
+			if (game.engineFlags & EngineFlags::ENGINE_VFX)
+			{
+				// Laser vfx
+				if (game.playerInput & InputFlags::INPUT_SHOOT)
+				{
+					sf::Vertex line[] = { sf::Vertex(entities.position[game.playerID], sf::Color::Red),
+										  sf::Vertex(game.mousePos, sf::Color::Red) };
+
+					window.draw(line, 2, sf::Lines);
+				}
+
+				// Player health vfx
+				if (game.health < ConfigData::HEALTH_MAX && entities.flags[game.playerID] & EntityFlags::Spawned)
+				{
+					float hurt = (1.0f - static_cast<float>(game.health) / ConfigData::HEALTH_MAX);
+
+					if (game.playerInput & 0b110000)
 					{
-						float deathSpin = rand() % 360 * GameVFX::DEATH_SPREAD;
-						if (deathSpin > 360.f) deathSpin -= 360.f;
-
-						float angle = deathSpin * 3.14159265f / 180.f;
-						sf::Vector2f dir = { std::cos(angle), std::sin(angle) };
-
-						game.states[id] |= EntityFlags::STATE_ALIVE;
-						game.positions[id] = game.position + dir * GameVFX::DEATH_RADIUS;
-						game.velocities[id] = dir * GameVFX::DEATH_SPEED;
-						game.rotations[id] = angle + 90;
-						break;
-					}
-
-					// DEATH BULLET-WINDOW COLLISION
-					if (!game.viewBounds.contains(game.positions[id]))
-					{
-						//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
-						break;
-					}
-
-					// DEATH BULLET-ITEM COLLISION
-					for (int j = 0; j < game.itemCount; j++)
-					{
-						int jd = game.itemIDs[j];
-
-						if (!(game.states[jd] & EntityFlags::STATE_ALIVE)) continue;
-
-						sf::Vector2f delta = game.positions[id] - game.positions[jd];
-						float distSq = delta.x * delta.x + delta.y * delta.y;
-
-						if (distSq < GameCollision::COLLISION_BULLET_ITEM)
+						if (game.playerInput & InputFlags::INPUT_SHOOT)
 						{
-							game.velocities[jd] += game.velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
+							float hurting = hurt * 0.8;
+							hurtingColor = sf::Color(255 * hurting, 0, 255 * (1 - hurting));
+						}
+
+						if (game.playerInput & InputFlags::INPUT_GRAB)
+						{
+							float hurting = hurt * 0.8;
+							hurtingColor = sf::Color(0, 255 * hurting, 255);
+						}
+					}
+					else
+					{
+						hurtingColor = sf::Color(0, 0, 255);
+					}
+
+					sf::Vertex line[] = { sf::Vertex(entities.position[game.playerID], hurtingColor), sf::Vertex(game.mousePos, sf::Color::Black)};
+					window.draw(line, 2, sf::Lines);
+
+					shape.setOutlineThickness(hurt);
+					shape.setOutlineColor(hurtingColor);
+					shape.setFillColor(hurtingColor);
+				}
+			}
+
+			// HUD
+			if (game.engineFlags & EngineFlags::ENGINE_HUD)
+			{
+				window.setView(pauseView);
+
+				HUD.setString("HP " + std::to_string(game.health * 100 / ConfigData::HEALTH_MAX));
+				if (!(entities.flags[game.playerID] & EntityFlags::Spawned)) HUD.setString("HP 0");
+
+				HUD.setFillColor(sf::Color::Red);
+				if (game.health > ConfigData::HEALTH_MAX * 0.20) HUD.setFillColor(sf::Color::Yellow);
+				if (game.health > ConfigData::HEALTH_MAX * 0.70) HUD.setFillColor(sf::Color::Green);
+				if (!(entities.flags[game.playerID] & EntityFlags::Spawned)) HUD.setFillColor(sf::Color::Red);
+
+				window.draw(HUD);
+			}
+
+			// PAUSE SCREEN
+			if (game.engineFlags & EngineFlags::ENGINE_PAUSE)
+			{
+				window.clear();
+				window.setView(pauseView);
+
+				for (int i = 0; i < 3; i++)
+				{
+										
+					sf::Vector2f posText;
+					std::string string;
+
+					sf::Vector2f posShape;
+					sf::Color color;
+					int points;
+					
+					shape.setRadius(100);
+					shape.setOrigin(100, 100);
+
+					switch (i)
+					{
+					case 0:
+						posShape = { ConfigData::WINDOW_WIDTH * 0.25, ConfigData::WINDOW_HEIGHT * 0.5 };
+						color = sf::Color::Red;
+						points = 3;
+						break;
+
+					case 1:
+						posShape = { ConfigData::WINDOW_WIDTH * 0.5, ConfigData::WINDOW_HEIGHT * 0.5 };
+						color = sf::Color::Green;
+						points = 4;
+						break;
+
+					case 2:
+						posShape = { ConfigData::WINDOW_WIDTH * 0.75, ConfigData::WINDOW_HEIGHT * 0.5 };
+						color = sf::Color::Blue;
+						points = 30;
+						break;
+					}
+
+					shape.setPosition(posShape);
+					shape.setFillColor(color);
+					shape.setPointCount(points);
+										
+					sf::Text pauseText("The game is paused. Press [Esc] to continue.", font, 24);
+					pauseText.setOrigin(pauseText.getLocalBounds().width * 0.5, pauseText.getLocalBounds().height * 0.5);
+					pauseText.setPosition(ConfigData::WINDOW_WIDTH * 0.5, ConfigData::WINDOW_HEIGHT * 0.2);
+					pauseText.setFillColor(sf::Color::White);
+
+					sf::Text enemyText("Enemy", font, 24);
+					enemyText.setOrigin(enemyText.getLocalBounds().width * 0.5, enemyText.getLocalBounds().height * 0.5);
+					enemyText.setPosition(ConfigData::WINDOW_WIDTH * 0.25, ConfigData::WINDOW_HEIGHT * 0.7);
+					enemyText.setFillColor(sf::Color::White);
+
+					sf::Text itemText("Item", font, 24);
+					itemText.setOrigin(itemText.getLocalBounds().width * 0.5, itemText.getLocalBounds().height * 0.5);
+					itemText.setPosition(ConfigData::WINDOW_WIDTH * 0.5, ConfigData::WINDOW_HEIGHT * 0.7);
+					itemText.setFillColor(sf::Color::White);
+
+					sf::Text playerText("Player", font, 24);
+					playerText.setOrigin(playerText.getLocalBounds().width * 0.5, playerText.getLocalBounds().height * 0.5);
+					playerText.setPosition(ConfigData::WINDOW_WIDTH * 0.75, ConfigData::WINDOW_HEIGHT * 0.7);
+					playerText.setFillColor(sf::Color::White);
+
+					window.draw(shape);
+					window.draw(pauseText);
+					window.draw(enemyText);
+					window.draw(itemText);
+					window.draw(playerText);
+				}			
+			}
+
+			// GAME OVER SCREEN <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3
+			if (!(entities.flags[game.playerID] & EntityFlags::Spawned) && !(game.engineFlags & EngineFlags::ENGINE_PAUSE))
+			{
+				sf::Text overText("GAME OVER", font, 50);
+				overText.setPosition(ConfigData::WINDOW_WIDTH * 0.5, ConfigData::WINDOW_HEIGHT * 0.5);
+				overText.setOrigin(overText.getLocalBounds().width * 0.5, overText.getLocalBounds().height * 0.5);
+				overText.setOutlineColor(sf::Color::Black);
+				overText.setFillColor(sf::Color::Black);
+				overText.setOutlineThickness(0);
+				overText.setLetterSpacing(5);			
+				window.setView(hudView);
+				window.draw(overText);
+
+				// GAME OVER VFX
+				if (game.engineFlags & EngineFlags::ENGINE_VFX)
+				{
+					/*
+					for (int i = 0; i < game.bulletCount; i++)
+					{
+						int id = game.bulletIDs[i];
+
+						// SPAWN DEATH BULLETS
+						if (!(game.states[id] & EntityFlags::STATE_ALIVE))
+						{
+							float deathSpin = rand() % 360 * GameVFX::DEATH_SPREAD;
+							if (deathSpin > 360.f) deathSpin -= 360.f;
+
+							float angle = deathSpin * 3.14159265f / 180.f;
+							sf::Vector2f dir = { std::cos(angle), std::sin(angle) };
+
+							game.states[id] |= EntityFlags::STATE_ALIVE;
+							game.positions[id] = game.position + dir * GameVFX::DEATH_RADIUS;
+							game.velocities[id] = dir * GameVFX::DEATH_SPEED;
+							game.rotations[id] = angle + 90;
+							break;
+						}
+
+						// DEATH BULLET-WINDOW COLLISION
+						if (!game.viewBounds.contains(game.positions[id]))
+						{
 							//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
 							break;
 						}
-					}
 
-					// DEATH BULLET-ENEMY COLLISION
-					for (int k = 0; k < game.enemyCount; k++)
-					{
-						int kd = game.enemyIDs[k];
-
-						if (!(game.states[kd] & EntityFlags::STATE_ALIVE)) continue;
-
-						sf::Vector2f delta = game.positions[id] - game.positions[kd];
-						float distSq = delta.x * delta.x + delta.y * delta.y;
-
-						if (distSq < GameCollision::COLLISION_BULLET_ENEMY)
+						// DEATH BULLET-ITEM COLLISION
+						for (int j = 0; j < game.itemCount; j++)
 						{
-							game.velocities[kd] += game.velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
-							//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
-							break;
+							int jd = game.itemIDs[j];
+
+							if (!(game.states[jd] & EntityFlags::STATE_ALIVE)) continue;
+
+							sf::Vector2f delta = game.positions[id] - game.positions[jd];
+							float distSq = delta.x * delta.x + delta.y * delta.y;
+
+							if (distSq < GameCollision::COLLISION_BULLET_ITEM)
+							{
+								game.velocities[jd] += game.velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
+								//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
+								break;
+							}
+						}
+
+						// DEATH BULLET-ENEMY COLLISION
+						for (int k = 0; k < game.enemyCount; k++)
+						{
+							int kd = game.enemyIDs[k];
+
+							if (!(game.states[kd] & EntityFlags::STATE_ALIVE)) continue;
+
+							sf::Vector2f delta = game.positions[id] - game.positions[kd];
+							float distSq = delta.x * delta.x + delta.y * delta.y;
+
+							if (distSq < GameCollision::COLLISION_BULLET_ENEMY)
+							{
+								game.velocities[kd] += game.velocities[id] * GameVFX::DEATH_FORCE * deltaTime;
+								//killBullet(id);  <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME <3 FIX ME
+								break;
+							}
 						}
 					}
+					*/
 				}
-				*/
 			}
-		}
 
-		// STATS SCREEN
-		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && game.gameFlags & GameFlags::GAME_STATS)
-		{
-			window.clear(sf::Color::White);
-			pauseText.setFillColor(sf::Color::Black);
-
-			window.draw(pauseText);
-
-
-		}
-
-		// VFX
-		if (game.engineFlags & EngineFlags::ENGINE_RENDERING && game.engineFlags & EngineFlags::ENGINE_VFX)
-		{
-			// SHOOT & GRAB VFX
-			if (game.playerInput & 0b110000)
+			// DEBUG
+			if (game.engineFlags & EngineFlags::ENGINE_DEBUG)
 			{
-				
+				sf::Color debugColor = sf::Color(255, 255, 255, 255 * 0.2f);
 
+				window.setView(view);
+				sf::RectangleShape rectW({ ConfigData::WORLD_WIDTH, ConfigData::WORLD_HEIGHT });
+				rectW.setFillColor(sf::Color::Transparent);
+				rectW.setOutlineColor(debugColor);
+				rectW.setOutlineThickness(1);
+				rectW.setPosition(0, 0);
+				window.draw(rectW);
 
+				sf::Vertex lineA[] = { sf::Vertex(entities.position[game.playerID], debugColor),
+									   sf::Vertex(entities.position[game.playerID] + game.aim * 20.f, debugColor) };
+				window.draw(lineA, 2, sf::Lines);
 
+				sf::Vertex lineM[] = { sf::Vertex(entities.position[game.playerID], debugColor),
+									   sf::Vertex(entities.position[game.playerID] + game.dir * 20.f, debugColor) };
+				window.draw(lineM, 2, sf::Lines);
 
-
-
-
-
-
-
-
-
-
-				//sf::Vertex aimLine[] = { sf::Vertex(player.getPosition(), vfxColor), sf::Vertex(player.getPosition() + aim * 50.f, sf::Color::Transparent) };
-				//window.draw(aimLine, 2, sf::Lines);
-
-				/*
-				// Draw entity lines
-				if (grabbed > -1)
-				{
-					sf::Vertex tkLine[] = { sf::Vertex(items.position[grabbed], vfxColor), sf::Vertex(items.position[grabbed] - aim * 50.f, sf::Color::Transparent) };
-					window.draw(tkLine, 2, sf::Lines);
-				}
-
-				// Draw VFX outline
-				if (grabbed > -1)
-				{
-					vfx.setPointCount(4);
-					vfx.setPosition(items.position[grabbed]);
-
-					vfx.setOutlineColor(sf::Color::Cyan);
-
-					window.draw(vfx);
-				}
-				*/
 			}
-			else
-			{
-				player.setOutlineColor(sf::Color::Transparent);
 
-				//if (grabbed > -1)
-				//{
-				//	item.setOutlineColor(sf::Color::Transparent);
-				//}
-			}	
+			// Display
+			window.setView(view);
+			window.display();
+
+			// HANDLE SCREENSHOT
+			if (game.engineFlags & EngineFlags::ENGINE_DEBUG && screensave) takeScreenshot(window);
 		}
-
-		// HANDLE WINDOW
-		window.setView(view);
-		window.display();
-
-		// HANDLE SCREENSHOT
-		if (game.engineFlags & EngineFlags::ENGINE_DEBUG && screensave) takeScreenshot(window);
+		
     }
 
     return 0;
