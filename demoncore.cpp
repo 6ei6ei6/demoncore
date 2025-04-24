@@ -20,8 +20,8 @@ namespace ConfigData
 	constexpr int WORLD_HEIGHT = 1000;
 	constexpr int FPS_MAX = 60;
 	constexpr int HUD_SIZE = 40;
-	constexpr int HEALTH_MAX = 200;
-	constexpr int HEALTH_COST = 70;
+	constexpr float HEALTH_MAX = 200;
+	constexpr float HEALTH_COST = 70;
 	constexpr float DROP_FORCE = 3;
 	constexpr float REGEN_TIME = 0.2;
 	constexpr float REGEN_SPEED = 100;
@@ -120,7 +120,7 @@ struct GameState
 
 	int playerID = -1;
 
-	int health = ConfigData::HEALTH_MAX;
+	float health = ConfigData::HEALTH_MAX;
 
 	float zoom = 1.f;
 
@@ -295,8 +295,6 @@ sf::CircleShape shape(1, 1);
 sf::Text text("", font);
 sf::Text HUD("HUD", font, ConfigData::HUD_SIZE);
 
-sf::Color hurtingColor = sf::Color::Blue;
-
 sf::RenderWindow window(sf::VideoMode({ ConfigData::WINDOW_WIDTH, ConfigData::WINDOW_HEIGHT }), "demoncore");
 sf::View view({ 0.f,200.f }, { ConfigData::WINDOW_WIDTH, ConfigData::WINDOW_HEIGHT });
 const sf::View pauseView = window.getDefaultView();
@@ -397,7 +395,7 @@ int main()
 	spawnPlayer(); // NEEDS LOVE <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3 <3
 
 	initHUD();
-
+	
 	game.deadZone.width = ConfigData::DEADZONE_WIDTH;
 	game.deadZone.height = ConfigData::DEADZONE_HEIGHT;
 
@@ -668,12 +666,10 @@ int main()
 				entities.velocity[game.playerID] += game.dir * PhysicsData::ACCELERATION;
 
 				entities.velocity[game.playerID].x = std::max(-PhysicsData::MAX_SPEED, 
-													 std::min(entities.velocity[game.playerID].x, 
-													 PhysicsData::MAX_SPEED));
+													 std::min(entities.velocity[game.playerID].x, PhysicsData::MAX_SPEED));
 
 				entities.velocity[game.playerID].y = std::max(-PhysicsData::MAX_SPEED,
-													 std::min(entities.velocity[game.playerID].y,
-													 PhysicsData::MAX_SPEED));
+													 std::min(entities.velocity[game.playerID].y, PhysicsData::MAX_SPEED));
 			}
 
 			// Entity physics
@@ -731,10 +727,21 @@ int main()
 		// UPDATE STATES (?) //
 		// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 		// Update health
-		if (game.health <= 0) entities.flags[game.playerID] &= ~EntityFlags::Spawned;
+		//if (game.health <= 0) entities.flags[game.playerID] &= ~EntityFlags::Spawned;
 
-		if (game.health < ConfigData::HEALTH_MAX && regenTimer.getElapsedTime().asSeconds() > ConfigData::REGEN_TIME) 
-			game.health += ConfigData::REGEN_SPEED * deltaTime;
+		if (game.health < ConfigData::HEALTH_MAX && regenTimer.getElapsedTime().asSeconds() > ConfigData::REGEN_TIME)
+		{
+			float t = game.health / ConfigData::HEALTH_MAX;
+			float smoothT = t*t;
+			float regenAmount = (1.0f - smoothT) * ConfigData::REGEN_SPEED * deltaTime;
+
+			game.health += regenAmount;
+
+			game.health = std::max(0.f, 
+						  std::min(game.health, ConfigData::HEALTH_MAX));
+
+			if (game.health / ConfigData::HEALTH_MAX > 0.995) game.health = ConfigData::HEALTH_MAX;
+		}
 
 		// Update and move window
 		game.deadZone.left = view.getCenter().x - game.deadZone.width / 2.f;
@@ -755,6 +762,34 @@ int main()
 		// Clamp view size
 		if (view.getSize().x < 1 || view.getSize().y < 1) view.setSize({ 1,1 });
 
+		// Update window titles
+		if (game.engineFlags & EngineFlags::ENGINE_DEBUG)
+		{
+			std::string title = "demoncore";
+
+			float fps = 1.0f / deltaTime;
+			int level = 0;
+			int enemies = 0;
+
+			for (int i = 0; i < entities.activeIDs.size(); i++)
+			{
+				int id = entities.activeIDs[i];
+
+				if (entities.flags[id] & EntityFlags::Possessed)
+				{
+					enemies++;
+				}
+			}
+			
+			title = title + " "
+				+ "(" + std::to_string(static_cast<int>(fps)) + " FPS) : "
+				+ std::to_string(entities.activeIDs.size()) + " entities / "
+				+ std::to_string(enemies) + " enemies"
+				;
+
+			window.setTitle(title);
+		}
+
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// RENDERING //
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -763,15 +798,29 @@ int main()
 			// VFX - UNDER ENTITIES
 			if (game.engineFlags & EngineFlags::ENGINE_VFX)
 			{
+				// Telekinesis vfx
 				if (game.playerInput & InputFlags::INPUT_GRAB)
 				{
-					sf::CircleShape circle(25, 8);
-					circle.setOutlineColor(sf::Color(0, 255, 255));
-					circle.setFillColor(sf::Color::Transparent);
-					circle.setPosition(game.mousePos);
-					circle.setOrigin(25, 25);
-					circle.setOutlineThickness(1);
-					window.draw(circle);
+					static float t = 0.0f;
+					t += deltaTime * 8.f;
+					float strobe = 0.5f + 0.5f * std::sin(t);
+					
+					sf::Vector2f scale = { 1 + strobe, 1 + strobe };
+
+					strobe = std::max(0.2f,
+							 std::min(strobe, 1.f));
+
+					sf::Color color = sf::Color(0, 255, 255, 255 * strobe);
+
+					sf::CircleShape shapeT(12, 30);
+					shapeT.setFillColor(sf::Color::Transparent);
+					shapeT.setPosition(game.mousePos);
+					shapeT.setOutlineThickness(1);
+					shapeT.setOrigin(12, 12);
+
+					shapeT.setOutlineColor(color);
+					shapeT.setScale(scale);
+					window.draw(shapeT);
 				}
 			}
 
@@ -793,10 +842,10 @@ int main()
 				// Laser vfx
 				if (game.playerInput & InputFlags::INPUT_SHOOT)
 				{
-					sf::Vertex line[] = { sf::Vertex(entities.position[game.playerID], sf::Color::Red),
+					sf::Vertex lineL[] = { sf::Vertex(entities.position[game.playerID], sf::Color::Red),
 										  sf::Vertex(game.mousePos, sf::Color::Red) };
 
-					window.draw(line, 2, sf::Lines);
+					window.draw(lineL, 2, sf::Lines);
 				}
 
 				// Player health vfx
@@ -806,29 +855,30 @@ int main()
 
 					if (game.playerInput & 0b110000)
 					{
+						float padding = 1.f;
 						if (game.playerInput & InputFlags::INPUT_SHOOT)
 						{
-							float hurting = hurt * 0.8;
-							hurtingColor = sf::Color(255 * hurting, 0, 255 * (1 - hurting));
+							float hurting = hurt * padding;
+							//hurtingColor = sf::Color(255 * hurting, 0, 0);
 						}
 
 						if (game.playerInput & InputFlags::INPUT_GRAB)
 						{
-							float hurting = hurt * 0.8;
-							hurtingColor = sf::Color(0, 255 * hurting, 255);
+							float hurting = hurt * padding;
+							//hurtingColor = sf::Color(0, 255 * hurting, 255 * hurting);
 						}
 					}
 					else
 					{
-						hurtingColor = sf::Color(0, 0, 255);
+						//hurtingColor = sf::Color::Transparent;
 					}
 
-					sf::Vertex line[] = { sf::Vertex(entities.position[game.playerID], hurtingColor), sf::Vertex(game.mousePos, sf::Color::Black)};
-					window.draw(line, 2, sf::Lines);
+					//sf::Vertex lineH[] = { sf::Vertex(entities.position[game.playerID], hurtingColor), sf::Vertex(game.mousePos, sf::Color::Black)};
+					//window.draw(lineH, 2, sf::Lines);
 
 					shape.setOutlineThickness(hurt);
-					shape.setOutlineColor(hurtingColor);
-					shape.setFillColor(hurtingColor);
+				//	shape.setOutlineColor(hurtingColor);
+				//	shape.setFillColor(hurtingColor);
 				}
 			}
 
@@ -836,8 +886,9 @@ int main()
 			if (game.engineFlags & EngineFlags::ENGINE_HUD)
 			{
 				window.setView(pauseView);
-
-				HUD.setString("HP " + std::to_string(game.health * 100 / ConfigData::HEALTH_MAX));
+				
+				int value = game.health * 100 / ConfigData::HEALTH_MAX;
+				HUD.setString("HP " + std::to_string(value));
 				if (!(entities.flags[game.playerID] & EntityFlags::Spawned)) HUD.setString("HP 0");
 
 				HUD.setFillColor(sf::Color::Red);
@@ -1009,6 +1060,7 @@ int main()
 			{
 				sf::Color debugColor = sf::Color(255, 255, 255, 255 * 0.2f);
 
+				// World boundaries.
 				window.setView(view);
 				sf::RectangleShape rectW({ ConfigData::WORLD_WIDTH, ConfigData::WORLD_HEIGHT });
 				rectW.setFillColor(sf::Color::Transparent);
@@ -1017,14 +1069,15 @@ int main()
 				rectW.setPosition(0, 0);
 				window.draw(rectW);
 
+				// Aim debug line
 				sf::Vertex lineA[] = { sf::Vertex(entities.position[game.playerID], debugColor),
 									   sf::Vertex(entities.position[game.playerID] + game.aim * 20.f, debugColor) };
 				window.draw(lineA, 2, sf::Lines);
 
+				// Move debug line
 				sf::Vertex lineM[] = { sf::Vertex(entities.position[game.playerID], debugColor),
 									   sf::Vertex(entities.position[game.playerID] + game.dir * 20.f, debugColor) };
 				window.draw(lineM, 2, sf::Lines);
-
 			}
 
 			// Display
